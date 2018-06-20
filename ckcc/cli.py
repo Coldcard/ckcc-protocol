@@ -123,29 +123,27 @@ def reboot():
 
 @main.command('test')
 @click.option('--single', '-s', default=None,
-            type=click.IntRange(0,256), help='If set, use this value on wire.')
+            type=click.IntRange(0,255), help='If set, use this value on wire.')
 def usb_test(single):
     "Test USB connection (debug/dev)"
     dev = ColdcardDevice(sn=force_serial)
 
     rng = []
-    if 1:
-        rng.extend(range(55, 66))       # buggy lengths are around 64 
-        rng.extend(range(1013, 1024))
+    rng.extend(range(55, 66))       # buggy lengths are around 64 
+    rng.extend(range(1013, 1024))
 
-        # we have 4 bytes of overhead (args) for ping cmd, so this will be max-length
-        rng.extend(range(MAX_MSG_LEN-10, MAX_MSG_LEN-4))
+    # we have 4 bytes of overhead (args) for ping cmd, so this will be max-length
+    rng.extend(range(MAX_MSG_LEN-10, MAX_MSG_LEN-4))
 
-    else:
-        rng.extend(range(60, 64))       # buggy lengths are around 64 
     #print(repr(rng))
 
     for i in rng:
-        print("Ping with length: %d" % i, end='\n')
+        print("Ping with length: %d" % i, end='')
         body = os.urandom(i) if single is None else bytes([single]*i)
         rb = dev.send_recv(CCProtocolPacker.ping(body))
         assert rb == body, "Fail @ len: %d, got back %d bytes\n%r !=\n%r" % (
                                         i, len(rb), b2a_hex(body), b2a_hex(rb))
+        print("  Okay")
 
 def dfu_parse(fd):
     # do just a little parsing of DFU headers, to find start/length of main binary

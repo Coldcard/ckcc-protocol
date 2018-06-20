@@ -3,6 +3,11 @@
 #
 # Implement the desktop side of our Coldcard USB protocol.
 #
+# If you would like to use a different EC/AES library, you may subclass
+# and override these member functions:
+#
+#   - ec_mult, ec_setup, aes_setup, check_mitm
+#
 import hid, sys, os
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256

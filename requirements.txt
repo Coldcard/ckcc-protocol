@@ -1,0 +1,17 @@
+# not used
+#pyusb
+
+# may need "brew install hidapi" before this?
+hidapi>=0.7.99.post21
+
+click>=6.7
+
+# required by link-layer encryption in client.py
+ecdsa>=0.13
+
+# for link-layer encryption
+pyaes
+
+# for testing (only)
+#pycoin==0.80
+#python-bitcoinrpc>=1.0

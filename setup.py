@@ -10,22 +10,23 @@
 from setuptools import setup
 
 with open('requirements.txt') as f:
-    requirements = f.read().splitlines()
+    requirements = [ln for ln in f.read().splitlines() if ln and ln[0] != '#']
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+from ckcc import __version__
 
 setup(
     name='ckcc-protocol',
-    version='0.3',
+    version=__version__,
     packages=[ 'ckcc' ],
     python_requires='>3.6.0',
     install_requires=requirements,
     url='https://coldcardwallet.com',
     author='Coinkite Inc.',
     author_email='support@coinkite.com',
-    description="Communciate with your Coldcard via python",
+    description="Communicate with your Coldcard via python",
     long_description=long_description,
     long_description_content_type="text/markdown",
     entry_points='''

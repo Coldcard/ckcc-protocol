@@ -11,7 +11,5 @@ ecdsa>=0.13
 
 # for link-layer encryption
 pyaes
+pycoin==0.80
 
-# for testing (only)
-#pycoin==0.80
-#python-bitcoinrpc>=1.0

@@ -18,8 +18,8 @@ with open("README.md", "r") as fh:
 
 setup(
     name='ckcc-protocol',
-    version='0.1',
-    py_modules=['ckcc'],
+    version='0.3',
+    packages=[ 'ckcc' ],
     python_requires='>3.6.0',
     install_requires=requirements,
     url='https://coldcardwallet.com',

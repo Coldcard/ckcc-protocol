@@ -9,7 +9,7 @@ This is the python code, and command-line utilities you need to communciate with
 
 ## Setup For Everyday Use
 
-- just `pip install ckcc-protocol`
+- `pip install ckcc-protocol`
 
 ## More Advanced Setup For Everyday Use
 
@@ -25,11 +25,6 @@ This is the python code, and command-line utilities you need to communciate with
 
 ## Requirements
 
-- python3
-- hidapi for USB HID access in a portable way
-- see `requirements.txt` file
-
-# Reference for Maintainers and Contributors
-
-- [Details on setup.py](https://packaging.python.org/tutorials/packaging-projects/)
-
+- python3.6 or higher
+- `hidapi` for USB HID access in a portable way.
+- see `requirements.txt` file for more details.

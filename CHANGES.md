@@ -27,4 +27,10 @@ To build to release for Pypi:
     - you may need to force the version number to get the updated file
 - test `ckcc list` works
 - test `python -m ckcc` works
+- final upload: `twine upload dist/*`
+
+## Reminders
+
+- update `ckcc/__init__.py` with new `__version__` string
+- maybe delete old version from `./dist`
 

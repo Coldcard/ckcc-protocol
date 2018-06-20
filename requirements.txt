@@ -1,15 +1,15 @@
-# not used
-#pyusb
+# These are the "full" requirements. You might not need them all! See setup.py
 
 # may need "brew install hidapi" before this?
 hidapi>=0.7.99.post21
 
+# for CLI command option parsing
 click>=6.7
 
 # required by link-layer encryption in client.py
 ecdsa>=0.13
-
-# for link-layer encryption
 pyaes
+
+# optional: to verify against active MiTM attacks
 pycoin==0.80
 

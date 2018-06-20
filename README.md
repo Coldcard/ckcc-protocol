@@ -9,19 +9,25 @@ This is the python code, and command-line utilities you need to communciate with
 
 ## Setup For Everyday Use
 
+- `pip install 'ckcc-protocol[cli]'`
+
+This installs a single command, "ckcc", which is a helpful command line program.
+
+If you just want the library, use:
+
 - `pip install ckcc-protocol`
 
-## More Advanced Setup For Everyday Use
-
-- do a git checkout
-- run `python setup.py install`
 
 ## Setup If You Might Change the Code
 
-
 - do a git checkout
-- run `pip install --editable .`
+- probable make a fresh virtual env
+- run:
 
+```
+pip install -r requirements.txt
+pip install --editable .
+```
 
 ## Requirements
 
@@ -34,7 +40,7 @@ This is the python code, and command-line utilities you need to communciate with
 
 ## Command Arguments
 
-```sh
+```
 % ckcc
 Usage: ckcc [OPTIONS] COMMAND [ARGS]...
 
@@ -64,7 +70,7 @@ Commands:
 
 ## Message Signing
 
-```sh
+```
 % ckcc msg --help
 Usage: ckcc msg [OPTIONS] MESSAGE
 
@@ -85,7 +91,7 @@ H4mTuwMUdnu3MyMA+6aJ3hiAF4L0WBDZFseTEno511hNN8/THIeM4GW4SnrcJJhS3WxMZEWFdEIZDSP+
 
 ## Transaction Signing
 
-```sh
+```
 % ckcc sign --help
 Usage: ckcc sign [OPTIONS] PSBT_IN PSBT_OUT
 

@@ -353,4 +353,5 @@ class UnixSimulatorPipe:
     def get_serial_number_string(self):
         return 'simulator'
 
+
 # EOF

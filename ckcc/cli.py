@@ -18,7 +18,8 @@ from collections import namedtuple
 from base64 import b64encode
 from functools import wraps
 
-from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MSG_LEN, MAX_BLK_LEN
+from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError
+from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 

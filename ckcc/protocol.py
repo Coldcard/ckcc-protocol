@@ -5,28 +5,7 @@
 # - use <I and <H, never >H
 #
 from struct import pack, unpack_from
-
-try:
-    from micropython import const
-except ImportError:
-    const = int
-
-# For upload/download this is the max size of the data block.
-MAX_BLK_LEN = const(2048)
-
-# Max total message length, excluding framing overhead (1 byte per 64).
-# - includes args for upload command
-MAX_MSG_LEN = const(4+4+4+MAX_BLK_LEN)
-
-# Max PSBT txn we support (384k bytes as PSBT)
-# - the max on the wire for mainnet is 100k
-# - but a PSBT might contain a full txn for each input
-MAX_TXN_LEN = const(384*1024)
-
-MAX_UPLOAD_LEN = 2*MAX_TXN_LEN
-
-# max length of text messages for signing
-MSG_SIGNING_MAX_LENGTH = 240
+from .constants import *
 
 class CCProtoError(RuntimeError):
     def __str__(self):

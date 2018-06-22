@@ -6,7 +6,7 @@
 # If you would like to use a different EC/AES library, you may subclass
 # and override these member functions:
 #
-#   - ec_mult, ec_setup, aes_setup, check_mitm
+#   - ec_mult, ec_setup, aes_setup, mitm_verify
 #
 import hid, sys, os
 from binascii import b2a_hex, a2b_hex
@@ -17,8 +17,13 @@ from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MS
 COINKITE_VID = 0xd13e
 CKCC_PID     = 0xcc10
 
+# Unix domain socket used by the simulator
+CKCC_SIMULATOR_PATH = '/tmp/ckcc-simulator.sock'
+
 class ColdcardDevice:
     def __init__(self, sn=None, dev=None, encrypt=True):
+        # Establish connection via USB (HID) or Unix Pipe
+        self.is_simulator = False
 
         if not dev and sn and '/' in sn:
             dev = UnixSimulatorPipe(sn)
@@ -26,7 +31,6 @@ class ColdcardDevice:
             self.is_simulator = True
 
         if not dev:
-            self.is_simulator = False
 
             for info in hid.enumerate(COINKITE_VID, CKCC_PID):
                 found = info['serial_number']
@@ -42,9 +46,10 @@ class ColdcardDevice:
                 break
 
             if not dev:
-                print("Could not find Coldcard!" 
+                raise KeyError("Could not find Coldcard!" 
                         if not sn else ('Cannot find CC with serial: '+sn))
-                sys.exit(1)
+        else:
+            found = dev.get_serial_number_string()
 
         self.dev = dev
         self.serial = found
@@ -58,16 +63,20 @@ class ColdcardDevice:
 
         self.resync()
 
-
         if encrypt:
             self.start_encryption()
+
+    def close(self):
+        # close underlying HID device
+        if self.dev:
+            self.dev.close()
+            self.dev = None
 
     def resync(self):
         # flush anything already waiting on the EP
         while 1:
             junk = self.dev.read(64, timeout_ms=1)
             if not junk: break
-            print("junk: %r" % junk)
 
         # write a special packet, that encodes data zero-length, and last
         rv = self.dev.write(b'\x80' + (b'\xff'*63))
@@ -77,7 +86,6 @@ class ColdcardDevice:
         while 1:
             junk = self.dev.read(64, timeout_ms=1)
             if not junk: break
-            print("junk 2: %r" % junk)
 
         # check things
         assert self.dev.error() == ''
@@ -145,10 +153,9 @@ class ColdcardDevice:
             return CCProtocolUnpacker.decode(resp)
         except CCProtoError as e:
             if expect_errors: raise
-            #print("Protocol error: %r" % e)
             raise
         except:
-            print("Corrupt response: %r" % resp)
+            #print("Corrupt response: %r" % resp)
             raise
 
     def ec_setup(self):
@@ -205,9 +212,6 @@ class ColdcardDevice:
         self.encrypt_request = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).decrypt
         self.decrypt_response = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).encrypt
 
-    def mitm_verify(self, sig):
-        assert ok, "MitM attack underway? Wrong pubkey used for session"
-
     def start_encryption(self):
         # setup encryption on the link
         # - pick our own key pair, IV for AES
@@ -231,18 +235,8 @@ class ColdcardDevice:
         #print('sess key = %s' % b2a_hex(self.session_key))
         self.aes_setup(self.session_key)
 
-    def check_mitm(self, sig=None):
-        # Optional? verification against MiTM attack:
-        # Using the master xpub, check a signature over the session public key, to
-        # verify we talking directly to the real Coldcard (no active MitM between us).
-        # - message is just the session key itself; no digests or prefixes
-        # - no need for this unless concerned about *active* mitm on USB bus
-        # - passive attackers (snoopers) will get nothing anyway, thanks to diffie-helman sauce
-        # - unfortunately too slow to do everytime?
-
-        assert self.master_xpub, "device doesn't have any secrets yet"
-        assert self.session_key, "connection not yet in encrypted mode"
-
+    def mitm_verify(self, sig, expected_xpub):
+        # replace this with your own library, as needed.
         try:
             from pycoin.key.BIP32Node import BIP32Node
             from pycoin.contrib.msg_signing import verify_message
@@ -251,18 +245,34 @@ class ColdcardDevice:
         except ImportError:
             raise RuntimeError("Missing pycoin for signature checking")
 
+        mk = BIP32Node.from_wallet_key(expected_xpub)
+        ok = verify_message(mk, b64encode(sig), msg_hash=from_bytes_32(self.session_key))
+
+        return ok
+
+    def check_mitm(self, expected_xpub=None, sig=None):
+        # Optional? verification against MiTM attack:
+        # Using the master xpub, check a signature over the session public key, to
+        # verify we talking directly to the real Coldcard (no active MitM between us).
+        # - message is just the session key itself; no digests or prefixes
+        # - no need for this unless concerned about *active* mitm on USB bus
+        # - passive attackers (snoopers) will get nothing anyway, thanks to diffie-helman sauce
+        # - unfortunately might be too slow to do everytime?
+
+        xp = expected_xpub or self.master_xpub
+        assert xp, "device doesn't have any secrets yet"
+        assert self.session_key, "connection not yet in encrypted mode"
+
         # this request is delibrately slow on the device side
         if not sig:
             sig = self.send_recv(CCProtocolPacker.check_mitm(), timeout=5000)
 
         assert len(sig) == 65
 
-        mk = BIP32Node.from_wallet_key(self.master_xpub)
-        ok = verify_message(mk, b64encode(sig), msg_hash=from_bytes_32(self.session_key))
+        ok = self.mitm_verify(sig, xp)
 
         if ok != True:
-            raise RuntimeError("Possible MiTM attack: incorrect signatrue observed")
-
+            raise RuntimeError("Possible active MiTM attack in progress! Incorrect signature.")
 
     def upload_file(self, data, verify=True, blksize=1024):
         # upload a single file, up to 1MB? in size. Can check arrives ok.
@@ -307,11 +317,11 @@ class UnixSimulatorPipe:
         try:
             self.pipe.connect(path)
         except FileNotFoundError:
-            print("Cannot connect to simulator. Is it running?")
-            sys.exit(1)
+            raise RuntimeError("Cannot connect to simulator. Is it running?")
 
         pn = '/tmp/ckcc-client-%d.sock' % os.getpid()
         self.pipe.bind(pn)     # just needs any name
+        self.pipe_name = pn
         atexit.register(os.unlink, pn)
 
     def read(self, max_count, timeout_ms=None):
@@ -333,6 +343,12 @@ class UnixSimulatorPipe:
 
     def error(self):
         return ''
+
+    def close(self):
+        self.pipe.close()
+        try:
+            os.unlink(self.pipe_name)
+        except: pass
 
     def get_serial_number_string(self):
         return 'simulator'

@@ -25,8 +25,12 @@ MAX_TXN_LEN = const(384*1024)
 
 MAX_UPLOAD_LEN = 2*MAX_TXN_LEN
 
+# max length of text messages for signing
+MSG_SIGNING_MAX_LENGTH = 240
+
 class CCProtoError(RuntimeError):
-    pass
+    def __str__(self):
+        return self.args[0]
 
 class CCProtocolPacker:
     # returns a lamba that will take correct args
@@ -115,6 +119,13 @@ class CCProtocolPacker:
         return b'xpub' + subpath.encode('ascii')
 
     @staticmethod
+    def show_address(subpath, is_segwit, is_p2sh):
+        # takes a string, like: m/44'/0'/23/23
+        # shows on screen, no feedback from user expected
+        return pack('<4sII', b'show', int(bool(is_segwit)), int(bool(is_p2sh))) \
+                            +  subpath.encode('ascii')
+
+    @staticmethod
     def sim_keypress(key):
         # Simulator ONLY: pretend a key is pressed
         return b'XKEY' + key
@@ -134,7 +145,7 @@ class CCProtocolUnpacker:
 
         d = getattr(cls, sign, cls)
         if d is cls:
-            raise CCProtoError('unknown resp signature: ' + repr(sign))
+            raise CCProtoError('Unknown response signature: ' + repr(sign))
 
         return d(msg)
         

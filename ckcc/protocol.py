@@ -72,9 +72,9 @@ class CCProtocolPacker:
         return pack('<4sII32s', b'stxn', length, int(finalize), file_sha)
 
     @staticmethod
-    def sign_message(raw_msg, subpath='m'):
+    def sign_message(raw_msg, subpath='m', addr_fmt=AF_CLASSIC):
         # only begins user interaction
-        return pack('<4sII', b'smsg', len(subpath), len(raw_msg)) \
+        return pack('<4sIII', b'smsg', addr_fmt, len(subpath), len(raw_msg)) \
                     + subpath.encode('ascii') + raw_msg
 
     @staticmethod
@@ -98,11 +98,10 @@ class CCProtocolPacker:
         return b'xpub' + subpath.encode('ascii')
 
     @staticmethod
-    def show_address(subpath, is_segwit, is_p2sh):
+    def show_address(subpath, addr_fmt=AF_CLASSIC):
         # takes a string, like: m/44'/0'/23/23
         # shows on screen, no feedback from user expected
-        return pack('<4sII', b'show', int(bool(is_segwit)), int(bool(is_p2sh))) \
-                            +  subpath.encode('ascii')
+        return pack('<4sI', b'show', addr_fmt) + subpath.encode('ascii')
 
     @staticmethod
     def sim_keypress(key):

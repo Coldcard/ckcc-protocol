@@ -20,6 +20,7 @@ from functools import wraps
 
 from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
+from ckcc.constants import AF_P2WPKH, AF_CLASSIC, AF_P2WPKH_P2SH
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 
@@ -498,16 +499,21 @@ a filename based on the date.'''
         
 @main.command('addr')
 @click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show')
-@click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (bech32)')
+@click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
+@click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(path, quiet=False, segwit=False):
+def show_address(path, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
     dev = ColdcardDevice(sn=force_serial)
 
-    from ckcc.constants import AF_P2WPKH, AF_CLASSIC
 
-    addr_fmt = AF_CLASSIC if not segwit else AF_P2WPKH
+    if wrap:
+        addr_fmt = AF_P2WPKH_P2SH
+    elif segwit:
+        addr_fmt = AF_P2WPKH
+    else:
+        addr_fmt = AF_CLASSIC
 
     addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt), timeout=None)
 

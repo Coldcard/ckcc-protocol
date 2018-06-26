@@ -83,11 +83,11 @@ def debug():
     SR = CC.send_recv
 
     cli = HistoryConsole(locals=dict(globals(), **locals()))
-    cli.interact(banner="Go for it: 'CC' has is an device", exitmsg='')
+    cli.interact(banner="Go for it: 'CC' is the connected device", exitmsg='')
 
 @main.command('list')
 def _list():
-    "List all attached Coldcard devices."
+    "List all attached Coldcard devices"
 
     count = 0
     for info in hid.enumerate(COINKITE_VID, CKCC_PID):
@@ -337,8 +337,6 @@ def run_eval(stmt):
     v = dev.send_recv(b'EXEC' + stmt.encode('utf-8'))
 
     click.echo(v)
-    
-    
     
 @main.command('msg')
 @click.argument('message')

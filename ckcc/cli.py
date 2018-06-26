@@ -489,7 +489,7 @@ a filename based on the date.'''
     else:
         assert outdir
 
-        # pick a useful filename, if they gave a dirnamek
+        # pick a useful filename, if they gave a dirname
         fn = os.path.join(outdir, time.strftime('backup-%Y%m%d-%H%M.7z'))
 
         open(fn, 'wb').write(result)
@@ -499,8 +499,8 @@ a filename based on the date.'''
 @main.command('addr')
 @click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show')
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (bech32)')
-#@click.option('--verbose', '-v', is_flag=True, help='Show more details')
-def show_address(path, verbose=True, segwit=False):
+@click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
+def show_address(path, quiet=False, segwit=False):
     "Show the human version of an address"
 
     dev = ColdcardDevice(sn=force_serial)
@@ -511,9 +511,9 @@ def show_address(path, verbose=True, segwit=False):
 
     addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt), timeout=None)
 
-    click.echo('Displaying address:\n\n%s\n' % addr)
-
-    #print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
-    #sys.stderr.flush()
+    if quiet:
+        click.echo(addr)
+    else:
+        click.echo('Displaying address:\n\n%s\n' % addr)
 
 # EOF

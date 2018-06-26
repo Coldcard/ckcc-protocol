@@ -321,10 +321,18 @@ class UnixSimulatorPipe:
         except FileNotFoundError:
             raise RuntimeError("Cannot connect to simulator. Is it running?")
 
-        pn = '/tmp/ckcc-client-%d.sock' % os.getpid()
-        self.pipe.bind(pn)     # just needs any name
+        instance = 0
+        while instance < 10:
+            pn = '/tmp/ckcc-client-%d-%d.sock' % (os.getpid(), instance)
+            try:
+                self.pipe.bind(pn)     # just needs any name
+                break
+            except OSError:
+                instance += 1
+                continue
+
         self.pipe_name = pn
-        atexit.register(os.unlink, pn)
+        atexit.register(self.close)
 
     def read(self, max_count, timeout_ms=None):
         import socket

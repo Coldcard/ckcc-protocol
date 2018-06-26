@@ -285,7 +285,8 @@ class ColdcardDevice:
 
         if verify:
             rb = self.send_recv(CCProtocolPacker.sha256())
-            assert rb == chk
+            if rb != chk:
+                raise RuntimeError('Checksum wrong during file upload')
 
         return len(data), chk
 
@@ -302,7 +303,8 @@ class ColdcardDevice:
             pos += len(here)
             assert len(here) > 0
 
-        assert chk.digest() == checksum
+        if chk.digest() != checksum:
+            raise RuntimeError('Checksum wrong during file download')
 
         return data
 

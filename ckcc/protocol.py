@@ -11,6 +11,14 @@ class CCProtoError(RuntimeError):
     def __str__(self):
         return self.args[0]
 
+class CCUserRefused(RuntimeError):
+    def __str__(self):
+        return 'You refused permission to do the operation'
+
+class CCBusyError(RuntimeError):
+    def __str__(self):
+        return 'Coldcard is handling another request right now'
+
 class CCProtocolPacker:
     # returns a lamba that will take correct args
     # and then give you a binary string to encode the
@@ -143,7 +151,11 @@ class CCProtocolUnpacker:
 
     def refu(msg):
         # user didn't want to approve something
-        return 'Refused'
+        raise CCUserRefused()
+
+    def busy(msg):
+        # user didn't want to approve something
+        raise CCBusyError()
 
     def biny(msg):
         # binary string: length implied by msg framing

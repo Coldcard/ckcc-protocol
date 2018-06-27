@@ -14,7 +14,6 @@ import hid, click, sys, os, pdb, struct, time, io
 from pprint import pformat
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
-from collections import namedtuple
 from base64 import b64encode
 from functools import wraps
 
@@ -23,6 +22,7 @@ from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
 from ckcc.constants import AF_P2WPKH, AF_CLASSIC, AF_P2WPKH_P2SH
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
+from ckcc.utils import dfu_parse
 
 global force_serial
 force_serial = None
@@ -147,49 +147,6 @@ def usb_test(single):
                                         i, len(rb), b2a_hex(body), b2a_hex(rb))
         print("  Okay")
 
-def dfu_parse(fd):
-    # do just a little parsing of DFU headers, to find start/length of main binary
-    # - not trying to support anything but what ../stm32/Makefile will generate
-    # - see external/micropython/tools/pydfu.py for details
-    # - works sequentially only
-    fd.seek(0)
-
-    def consume(xfd, tname, fmt, names):
-        # Parses the struct defined by `fmt` from `data`, stores the parsed fields
-        # into a named tuple using `names`. Returns the named tuple.
-        size = struct.calcsize(fmt)
-        here = xfd.read(size)
-        ty = namedtuple(tname, names.split())
-        values = struct.unpack(fmt, here)
-        return ty(*values)
-
-    dfu_prefix = consume(fd, 'DFU', '<5sBIB', 'signature version size targets')
-
-    #print('dfu: ' + repr(dfu_prefix))
-
-    assert dfu_prefix.signature == b'DfuSe', "Not a DFU file (bad magic)"
-
-    for idx in range(dfu_prefix.targets):
-
-        prefix = consume(fd, 'Target', '<6sBI255s2I', 
-                                   'signature altsetting named name size elements')
-
-        #print("target%d: %r" % (idx, prefix))
-
-        for ei in range(prefix.elements):
-            # Decode target prefix
-            #   <   little endian
-            #   I   uint32_t    element address
-            #   I   uint32_t    element size
-            elem = consume(fd, 'Element', '<2I', 'addr size')
-
-            #print("target%d: %r" % (ei, elem))
-
-            # assume bootloader at least 32k, and targeting flash.
-            assert elem.addr >= 0x8008000, "Bad address?"
-
-            return fd.tell(), elem.size
-
 
 def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, dev=None):
     dev = dev or ColdcardDevice(sn=force_serial)
@@ -217,11 +174,10 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
             magic = struct.unpack_from("<I", hdr)[0]
             #print("hdr @ 0x%x: %s" % (FW_HEADER_OFFSET, b2a_hex(hdr)))
         except:
-            raise
             magic = None
 
         if magic != FW_HEADER_MAGIC:
-            click.echo("This does not look like a firmware file: %08x" % magic)
+            click.echo("This does not look like a firmware file! Bad magic value.")
             sys.exit(1)
 
         fd.seek(offset)

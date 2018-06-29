@@ -38,10 +38,12 @@ class CCProtocolPacker:
 
     @staticmethod
     def version():
+        # returns a string, with newline separators
         return pack('4s', b'vers')
 
     @staticmethod
     def ping(msg):
+        # returns whatever binary you give it
         return b'ping' + bytes(msg)
 
     @staticmethod

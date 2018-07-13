@@ -100,14 +100,6 @@ def _list():
         click.echo("(none found)")
 
 @main.command()
-def dfu():
-    "Put device into DFU firmware upgrade mode"
-    dev = ColdcardDevice(sn=force_serial)
-
-    resp = dev.send_recv(CCProtocolPacker.dfu())
-    print("Device says: %r" % resp if resp else "Okay!")
-
-@main.command()
 def logout():
     "Securely logout of device (will require replug to start over)"
     dev = ColdcardDevice(sn=force_serial)
@@ -122,6 +114,18 @@ def reboot():
 
     resp = dev.send_recv(CCProtocolPacker.reboot())
     print("Device says: %r" % resp if resp else "Okay!")
+
+@main.command('bag')
+@click.option('--number', '-n', metavar='BAG_NUMBER', default=None)
+def bag_number(number):
+    "Factory: set or read bag number -- single use only!"
+    dev = ColdcardDevice(sn=force_serial)
+
+    nn = b'' if not number else number.encode('ascii')
+
+    resp = dev.send_recv(CCProtocolPacker.bag_number(nn))
+
+    print("Bag number: %r" % resp)
 
 @main.command('test')
 @click.option('--single', '-s', default=None,

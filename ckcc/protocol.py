@@ -25,10 +25,6 @@ class CCProtocolPacker:
     # request
 
     @staticmethod
-    def dfu():
-        return pack('4s', b'dfu_')
-
-    @staticmethod
     def logout():
         return pack('4s', b'logo')
 
@@ -117,6 +113,11 @@ class CCProtocolPacker:
     def sim_keypress(key):
         # Simulator ONLY: pretend a key is pressed
         return b'XKEY' + key
+
+    @staticmethod
+    def bag_number(new_number=b''):
+        # one time only: put into bag, or readback bag
+        return b'bagi' + bytes(new_number)
 
 
 class CCProtocolUnpacker:

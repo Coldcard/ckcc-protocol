@@ -166,7 +166,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
             if fd.read(5) == b'DfuSe':
                 # expecting a DFU-wrapped file.
                 fd.seek(0)
-                offset, sz = dfu_parse(fd)
+                offset, sz, *_ = dfu_parse(fd)
             else:
                 # assume raw binary
                 pass

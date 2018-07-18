@@ -5,15 +5,15 @@ for #Bitcoin and other crypto-currencies.
 
 Get yours at [ColdcardWallet.com](http://coldcardwallet.com)
 
-This is the python code, and command-line utilities you need to communciate with it over USB.
+This is the python code and command-line utilities you need to communciate with it over USB.
 
 ## Setup For Everyday Use
 
 - `pip install 'ckcc-protocol[cli]'`
 
-This installs a single command, "ckcc", which is a helpful command line program.
+This installs a single helpful command line program: `ckcc`
 
-If you just want the library, use:
+If you just want the python library, use:
 
 - `pip install ckcc-protocol`
 
@@ -31,7 +31,7 @@ pip install --editable .
 
 ## Requirements
 
-- python3.6 or higher
+- python 3.5.0 or higher
 - `hidapi` for USB HID access in a portable way.
 - see `requirements.txt` file for more details.
 
@@ -52,9 +52,6 @@ Options:
 Commands:
   backup   Prompts user to remember a massive pass...
   debug    Start interactive (local) debug session
-  dfu      Put device into DFU firmware upgrade mode
-  eval     Simulator only: eval a python statement
-  exec     Simulator only: exec a python script
   list     List all attached Coldcard devices.
   logout   Securely logout of device (will require...
   msg      Sign a short text message

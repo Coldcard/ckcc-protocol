@@ -20,7 +20,6 @@ cli_requirements = [
     'pycoin==0.80',
 ]
 
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 

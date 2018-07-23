@@ -304,15 +304,27 @@ def run_eval(stmt):
 @click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to use')
 @click.option('--verbose', '-v', is_flag=True, help='Include fancy ascii armour')
 @click.option('--just-sig', '-j', is_flag=True, help='Just the signature itself, nothing more')
-def sign_message(message, path, verbose=True, just_sig=False):
+@click.option('--segwit', '-s', is_flag=True, help='Address in segwit native (p2wpkh, bech32)')
+@click.option('--wrap', '-w', is_flag=True, help='Address in segwit wrapped in P2SH (p2wpkh)')
+def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit=False):
     "Sign a short text message"
 
     dev = ColdcardDevice(sn=force_serial)
 
+    if wrap:
+        addr_fmt = AF_P2WPKH_P2SH
+    elif segwit:
+        addr_fmt = AF_P2WPKH
+    else:
+        addr_fmt = AF_CLASSIC
+
+    # NOTE: initial version of firmware not expected to do segwit stuff right, since
+    # standard very much still in flux, see: <https://github.com/bitcoin/bitcoin/issues/10542>
+
     # not enforcing policy here on msg contents, so we can define that on product
     message = message.encode('ascii')
 
-    ok = dev.send_recv(CCProtocolPacker.sign_message(message, path), timeout=None)
+    ok = dev.send_recv(CCProtocolPacker.sign_message(message, path, addr_fmt), timeout=None)
     assert ok == None
 
     print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
@@ -466,7 +478,6 @@ def show_address(path, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
     dev = ColdcardDevice(sn=force_serial)
-
 
     if wrap:
         addr_fmt = AF_P2WPKH_P2SH

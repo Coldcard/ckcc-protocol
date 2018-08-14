@@ -26,7 +26,7 @@ If you just want the python library, use:
 
 ```
 pip install -r requirements.txt
-pip install --editable .
+pip install --editable '.[cli]'
 ```
 
 ## Requirements

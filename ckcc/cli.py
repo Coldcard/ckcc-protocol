@@ -84,7 +84,7 @@ def debug():
     SR = CC.send_recv
 
     cli = HistoryConsole(locals=dict(globals(), **locals()))
-    cli.interact(banner="Go for it: 'CC' is the connected device", exitmsg='')
+    cli.interact(banner="Go for it: 'CC' is the connected device, SR=CC.send_recv", exitmsg='')
 
 @main.command('list')
 def _list():

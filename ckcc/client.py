@@ -78,22 +78,29 @@ class ColdcardDevice:
             junk = self.dev.read(64, timeout_ms=1)
             if not junk: break
 
-        # write a special packet, that encodes data zero-length, and last
-        rv = self.dev.write(b'\x80' + (b'\xff'*63))
+        # write a special packet, that encodes zero-length data, and last packet in sequence
+        # prefix with 0x00 for "report number"
+        self.dev.write(b'\x00\x80' + (b'\xff'*63))
 
-        # shouldn't be needed:
-        # flush anything already waiting on the EP
+        # flush any response (perhaps error) waiting on the EP
         while 1:
             junk = self.dev.read(64, timeout_ms=1)
             if not junk: break
 
-        # check things
-        assert self.dev.error() == ''
+        # check the above all worked
+        err = self.dev.error()
+        if err != '':
+            raise RuntimeError('hidapi: '+err)
+
         assert self.dev.get_serial_number_string() == self.serial
 
     def send_recv(self, msg, expect_errors=False, verbose=0, timeout=1000, encrypt=True):
         # first byte of each 64-byte packet encodes length or packet-offset
         assert 4 <= len(msg) <= MAX_MSG_LEN, "msg length: %d" % len(msg)
+
+        if not self.encrypt_request:
+            # disable encryption if not already enabled for this connection
+            encrypt = False
 
         if encrypt:
             msg = self.encrypt_request(msg)
@@ -101,28 +108,26 @@ class ColdcardDevice:
         left = len(msg)
         offset = 0
         while left > 0:
+            # Note: first byte always zero (HID report number), 
+            # [1] is framing header (length+flags)
+            # [2:65] payload (63 bytes, perhaps including padding)
             here = min(63, left)
-
-            buf = bytearray(64)
-            buf[1:1+here] = msg[offset:offset+here]
+            buf = bytearray(65)
+            buf[2:2+here] = msg[offset:offset+here]
             if here == left:
                 # final one in sequence
-                buf[0] = here | 0x80 | (0x40 if encrypt else 0x00)
+                buf[1] = here | 0x80 | (0x40 if encrypt else 0x00)
             else:
                 # more will be coming
-                buf[0] = here
+                buf[1] = here
 
-            assert len(buf) == 64, len(buf)
+            assert len(buf) == 65
 
             if verbose:
-                print("Tx [%2d]: %s (0x%x)" % (here, b2a_hex(buf), buf[0]))
-
-            # test for issue #396 in hidapi <https://github.com/signal11/hidapi/issues/396>
-            # but should no longer be possible w/ framing byte in [0] position
-            assert buf[0] != b'\0'
+                print("Tx [%2d]: %s (0x%x)" % (here, b2a_hex(buf[1:]), buf[1]))
 
             rv = self.dev.write(buf)
-            assert rv == 64, repr(rv)
+            assert rv == len(buf) == 65, repr(rv)
 
             offset += here
             left -= here
@@ -347,9 +352,10 @@ class UnixSimulatorPipe:
             return None
 
     def write(self, buf):
-        assert len(buf) == 64
+        assert len(buf) == 65
         self.pipe.settimeout(10)
-        return self.pipe.send(buf)
+        rv = self.pipe.send(buf[1:])
+        return 65 if rv == 64 else rv
 
     def error(self):
         return ''

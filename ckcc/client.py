@@ -12,6 +12,7 @@ import hid, sys, os
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
 from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MSG_LEN, MAX_BLK_LEN
+from .utils import decode_xpub, get_pubkey_string
 
 # unofficial, unpermissioned... USB numbers
 COINKITE_VID = 0xd13e
@@ -241,17 +242,26 @@ class ColdcardDevice:
         self.aes_setup(self.session_key)
 
     def mitm_verify(self, sig, expected_xpub):
-        # replace this with your own library, as needed.
+        # First try with Pycoin
         try:
             from pycoin.key.BIP32Node import BIP32Node
             from pycoin.contrib.msg_signing import verify_message
             from pycoin.encoding  import from_bytes_32
             from base64 import b64encode
-        except ImportError:
-            raise RuntimeError("Missing pycoin for signature checking")
 
-        mk = BIP32Node.from_wallet_key(expected_xpub)
-        ok = verify_message(mk, b64encode(sig), msg_hash=from_bytes_32(self.session_key))
+            mk = BIP32Node.from_wallet_key(expected_xpub)
+            return verify_message(mk, b64encode(sig), msg_hash=from_bytes_32(self.session_key))
+        except ImportError:
+            pass
+
+        # If Pycoin is not available, do it using ecdsa
+        from ecdsa import BadSignatureError, SECP256k1, VerifyingKey
+        pubkey, chaincode = decode_xpub(expected_xpub)
+        vk = VerifyingKey.from_string(get_pubkey_string(pubkey), curve=SECP256k1)
+        try:
+            ok = vk.verify_digest(sig[1:], self.session_key)
+        except BadSignatureError:
+            ok = False
 
         return ok
 

@@ -10,7 +10,3 @@ click>=6.7
 # required by link-layer encryption in client.py
 ecdsa>=0.13
 pyaes
-
-# optional: to verify against active MiTM attacks
-pycoin==0.80
-

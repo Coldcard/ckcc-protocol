@@ -17,7 +17,8 @@ from hashlib import sha256
 from base64 import b64encode
 from functools import wraps
 
-from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError
+from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
+from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
 from ckcc.constants import AF_P2WPKH, AF_CLASSIC, AF_P2WPKH_P2SH
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
@@ -26,6 +27,15 @@ from ckcc.utils import dfu_parse
 
 global force_serial
 force_serial = None
+
+# Cleanup display (supress traceback) for user-feedback exceptions
+_sys_excepthook = sys.excepthook
+def my_hook(ty, val, tb):
+    if ty in { CCProtoError, CCUserRefused, CCBusyError }:
+        print("\n\n%s" % val, file=sys.stderr)
+    else:
+        return _sys_excepthook(ty, val, tb)
+sys.excepthook=my_hook
 
 # Options we want for all commands
 @click.group()
@@ -263,6 +273,21 @@ def get_xpub(subpath):
 
     click.echo(xpub)
 
+@main.command('xfp')
+@click.option('--swab', '-s', is_flag=True, help='Reverse endian of result (32-bit)')
+def get_fingerprint(swab):
+    "Get the fingerprint for this wallet (master level)"
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    xfp = dev.master_fingerprint
+    assert xfp
+
+    if swab:
+        xfp = struct.unpack("<I", struct.pack(">I", xfp))[0]
+
+    click.echo('0x%08x' % xfp)
+
 @main.command('version')
 def get_version():
     "Get the version of the firmware installed"
@@ -442,9 +467,9 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=
 #@click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @display_errors
 def start_backup(outdir, outfile, verbose=False):
-    '''Prompts user to remember a massive pass phrase and then \
-downloads AES-encrypted data backup. By default, saves into current directory using \
-a filename based on the date.'''
+    '''Creates 7z encrypted backup file after prompting user to remember a massive passphrase. \
+Downloads the AES-encrypted data backup and by default, saves into current directory using \
+a filename based on today's date.'''
 
     dev = ColdcardDevice(sn=force_serial)
 
@@ -492,5 +517,40 @@ def show_address(path, quiet=False, segwit=False, wrap=False):
         click.echo(addr)
     else:
         click.echo('Displaying address:\n\n%s\n' % addr)
+
+@main.command('pass')
+@click.argument('passphrase', required=False)
+@click.option('--passphrase', prompt=True, hide_input=True,
+              confirmation_prompt=False)
+@click.option('--verbose', '-v', is_flag=True, help='Show new root xpub')
+def bip39_passphrase(passphrase, verbose=False):
+    "Provide a BIP39 passphrase"
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    dev.check_mitm()
+
+    ok = dev.send_recv(CCProtocolPacker.bip39_passphrase(passphrase), timeout=None)
+    assert ok == None
+
+    print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
+    sys.stderr.flush()
+
+    while 1:
+        time.sleep(0.250)
+        done = dev.send_recv(CCProtocolPacker.get_passphrase_done(), timeout=None)
+        if done == None:
+            continue
+        break
+
+    print("\r                                  \r", end='', file=sys.stderr)
+    sys.stderr.flush()
+
+    if verbose:
+        xpub = done
+        click.echo(xpub)
+    else:
+        click.echo('Done.')
+
 
 # EOF

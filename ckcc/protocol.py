@@ -43,6 +43,15 @@ class CCProtocolPacker:
         return b'ping' + bytes(msg)
 
     @staticmethod
+    def bip39_passphrase(pw):
+        return b'pass' + bytes(pw, 'utf8')
+
+    @staticmethod
+    def get_passphrase_done():
+        # poll completion of BIP39 encryption change (provides root xpub)
+        return b'pwok'
+
+    @staticmethod
     def check_mitm():
         return b'mitm'
 

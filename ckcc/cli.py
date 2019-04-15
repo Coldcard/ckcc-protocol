@@ -10,12 +10,13 @@
 # - see <https://github.com/trezor/cython-hidapi/blob/master/hid.pyx> for HID api 
 #
 #
-import hid, click, sys, os, pdb, struct, time, io
+import hid, click, sys, os, pdb, struct, time, io, re
 from pprint import pformat
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
 from base64 import b64encode
 from functools import wraps
+from base64 import b64decode, b64encode
 
 from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
 from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
@@ -418,22 +419,27 @@ def wait_and_download(dev, req, fn):
 @click.argument('psbt_out', type=click.File('wb'))
 @click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
-#@click.option('--just-txn', '-t', is_flag=True, help='Just the final transaction itself, nothing more')
+@click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
+@click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=True):
-    "Approve a spending transaction (by signing it on Coldcard)"
+def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=False, finalize=False):
+    "Approve a spending transaction by signing it on Coldcard"
+
+    # NOTE: not enforcing policy here on msg contents, so we can define that on product
 
     dev = ColdcardDevice(sn=force_serial)
-
     dev.check_mitm()
 
-    # not enforcing policy here on msg contents, so we can define that on product
+    # Handle non-binary encodings, and incorrect files.
     taste = psbt_in.read(10)
     psbt_in.seek(0)
-    if taste == b'70736274ff':
-        # hex encoded; make binary
-        psbt_in = io.BytesIO(a2b_hex(psbt_in.read()))
-        hex_mode = True
+    if taste == b'70736274ff' or taste == b'70736274FF':
+        # Looks hex encoded; make into binary again
+        hx = ''.join(re.findall(r'[0-9a-fA-F]*', psbt_in.read().decode('ascii')))
+        psbt_in = io.BytesIO(a2b_hex(hx))
+    elif taste[0:6] == b'cHNidP':
+        # Base64 encoded input
+        psbt_in = io.BytesIO(b64decode(psbt_in.read()))
     elif taste[0:5] != b'psbt\xff':
         click.echo("File doesn't have PSBT magic number at start.")
         sys.exit(1)
@@ -442,20 +448,24 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=
     txn_len, sha = real_file_upload(psbt_in, dev=dev)
 
     # start the signing process
-    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha), timeout=None)
+    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, finalize=finalize), timeout=None)
     assert ok == None
 
+    # errors will raise here, no need for error display
     result, _ = wait_and_download(dev, CCProtocolPacker.get_signed_txn(), 1)
 
-    if finalize:
-        # assume(?) transaction is completely signed, and output the
-        # bitcoin transaction to be sent.
-        # XXX maybe do this on embedded side, when txn is final?
-        # XXX otherwise, need to parse PSBT and also handle combining properly
-        pass
+    # If 'finalize' is set, we are outputing a bitcoin transaction,
+    # ready for the p2p network. If the CC wasn't able to finalize it,
+    # an exception would have occured. Most people will want hex here, but
+    # resisting the urge to force it.
 
     # save it
-    psbt_out.write(b2a_hex(result) if hex_mode else result)
+    if hex_mode:
+        result = b2a_hex(result)
+    elif b64_mode:
+        result = b64encode(result)
+
+    psbt_out.write(result)
 
 @main.command('backup')
 @click.option('--outdir', '-d', 

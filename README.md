@@ -21,7 +21,7 @@ If you just want the python library, use:
 ## Setup If You Might Change the Code
 
 - do a git checkout
-- probable make a fresh virtual env
+- probably make a fresh virtual env
 - run:
 
 ```

@@ -104,10 +104,15 @@ class CCProtocolPacker:
         return b'xpub' + subpath.encode('ascii')
 
     @staticmethod
-    def show_address(subpath, addr_fmt=AF_CLASSIC):
-        # takes a string, like: m/44'/0'/23/23
-        # shows on screen, no feedback from user expected
-        return pack('<4sI', b'show', addr_fmt) + subpath.encode('ascii')
+    def show_address(subpath, addr_fmt=AF_CLASSIC, witdeem_script=b''):
+        # - takes a string, like: m/44'/0'/23/23
+        # - for multisig or P2SH cases, will need the associated witness or redeem script
+        # - shows on screen, no feedback from user expected
+        if not (addr_fmt & AFC_SCRIPT):
+            return pack('<4sI', b'show', addr_fmt) + subpath.encode('ascii')
+        else:
+            return pack('<4sIII', b'show', addr_fmt, len(subpath), len(witdeem_script)) \
+                            + subpath.encode('ascii') + witdeem_script
 
     @staticmethod
     def sim_keypress(key):

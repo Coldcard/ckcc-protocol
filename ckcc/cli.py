@@ -19,7 +19,8 @@ from functools import wraps
 
 from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
-from ckcc.constants import AF_P2WPKH, AF_CLASSIC, AF_P2WPKH_P2SH
+from ckcc.constants import (
+    AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse
@@ -407,7 +408,7 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=
     psbt_in.seek(0)
     if taste == b'70736274ff':
         # hex encoded; make binary
-        psbt_in = io.BytesIO(a2b_hex(psbt_in.read()))
+        psbt_in = io.BytesIO(a2b_hex(psbt_in.read().strip()))
         hex_mode = True
     elif taste[0:5] != b'psbt\xff':
         click.echo("File doesn't have PSBT magic number at start.")
@@ -474,19 +475,32 @@ a filename based on the date.'''
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(path, quiet=False, segwit=False, wrap=False):
+@click.option('--script', '-r', default='', help='Redeem or witness script in hex (implies p2sh/p2wsh/p2sh-p2wsh)')
+def show_address(path, script, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
     dev = ColdcardDevice(sn=force_serial)
 
-    if wrap:
-        addr_fmt = AF_P2WPKH_P2SH
-    elif segwit:
-        addr_fmt = AF_P2WPKH
-    else:
-        addr_fmt = AF_CLASSIC
+    if script:
+        # NOTE: this is of limited usefulness because wallets know the other keys
+        #       in a multisig and we do not. So this is as general-purpose as possible
+        #       and is intended for debug/educational purposes.
+        addr_fmt = AF_P2SH
+        if segwit:
+            addr_fmt = AF_P2WSH
+        if wrap:
+            addr_fmt |= AFC_WRAPPED
 
-    addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt), timeout=None)
+        script = a2b_hex(script)
+    else:
+        if wrap:
+            addr_fmt = AF_P2WPKH_P2SH
+        elif segwit:
+            addr_fmt = AF_P2WPKH
+        else:
+            addr_fmt = AF_CLASSIC
+
+    addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt, script), timeout=None)
 
     if quiet:
         click.echo(addr)

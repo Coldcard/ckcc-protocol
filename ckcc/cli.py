@@ -10,14 +10,16 @@
 # - see <https://github.com/trezor/cython-hidapi/blob/master/hid.pyx> for HID api 
 #
 #
-import hid, click, sys, os, pdb, struct, time, io
+import hid, click, sys, os, pdb, struct, time, io, re
 from pprint import pformat
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
 from base64 import b64encode
 from functools import wraps
+from base64 import b64decode, b64encode
 
-from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError
+from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
+from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
 from ckcc.constants import (
     AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
@@ -27,6 +29,15 @@ from ckcc.utils import dfu_parse
 
 global force_serial
 force_serial = None
+
+# Cleanup display (supress traceback) for user-feedback exceptions
+_sys_excepthook = sys.excepthook
+def my_hook(ty, val, tb):
+    if ty in { CCProtoError, CCUserRefused, CCBusyError }:
+        print("\n\n%s" % val, file=sys.stderr)
+    else:
+        return _sys_excepthook(ty, val, tb)
+sys.excepthook=my_hook
 
 # Options we want for all commands
 @click.group()
@@ -264,6 +275,21 @@ def get_xpub(subpath):
 
     click.echo(xpub)
 
+@main.command('xfp')
+@click.option('--swab', '-s', is_flag=True, help='Reverse endian of result (32-bit)')
+def get_fingerprint(swab):
+    "Get the fingerprint for this wallet (master level)"
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    xfp = dev.master_fingerprint
+    assert xfp
+
+    if swab:
+        xfp = struct.unpack("<I", struct.pack(">I", xfp))[0]
+
+    click.echo('0x%08x' % xfp)
+
 @main.command('version')
 def get_version():
     "Get the version of the firmware installed"
@@ -394,22 +420,27 @@ def wait_and_download(dev, req, fn):
 @click.argument('psbt_out', type=click.File('wb'))
 @click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
-#@click.option('--just-txn', '-t', is_flag=True, help='Just the final transaction itself, nothing more')
+@click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
+@click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=True):
-    "Approve a spending transaction (by signing it on Coldcard)"
+def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=False, finalize=False):
+    "Approve a spending transaction by signing it on Coldcard"
+
+    # NOTE: not enforcing policy here on msg contents, so we can define that on product
 
     dev = ColdcardDevice(sn=force_serial)
-
     dev.check_mitm()
 
-    # not enforcing policy here on msg contents, so we can define that on product
+    # Handle non-binary encodings, and incorrect files.
     taste = psbt_in.read(10)
     psbt_in.seek(0)
-    if taste == b'70736274ff':
-        # hex encoded; make binary
-        psbt_in = io.BytesIO(a2b_hex(psbt_in.read().strip()))
-        hex_mode = True
+    if taste == b'70736274ff' or taste == b'70736274FF':
+        # Looks hex encoded; make into binary again
+        hx = ''.join(re.findall(r'[0-9a-fA-F]*', psbt_in.read().decode('ascii')))
+        psbt_in = io.BytesIO(a2b_hex(hx))
+    elif taste[0:6] == b'cHNidP':
+        # Base64 encoded input
+        psbt_in = io.BytesIO(b64decode(psbt_in.read()))
     elif taste[0:5] != b'psbt\xff':
         click.echo("File doesn't have PSBT magic number at start.")
         sys.exit(1)
@@ -418,20 +449,24 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=
     txn_len, sha = real_file_upload(psbt_in, dev=dev)
 
     # start the signing process
-    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha), timeout=None)
+    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, finalize=finalize), timeout=None)
     assert ok == None
 
+    # errors will raise here, no need for error display
     result, _ = wait_and_download(dev, CCProtocolPacker.get_signed_txn(), 1)
 
-    if finalize:
-        # assume(?) transaction is completely signed, and output the
-        # bitcoin transaction to be sent.
-        # XXX maybe do this on embedded side, when txn is final?
-        # XXX otherwise, need to parse PSBT and also handle combining properly
-        pass
+    # If 'finalize' is set, we are outputing a bitcoin transaction,
+    # ready for the p2p network. If the CC wasn't able to finalize it,
+    # an exception would have occured. Most people will want hex here, but
+    # resisting the urge to force it.
 
     # save it
-    psbt_out.write(b2a_hex(result) if hex_mode else result)
+    if hex_mode:
+        result = b2a_hex(result)
+    elif b64_mode:
+        result = b64encode(result)
+
+    psbt_out.write(result)
 
 @main.command('backup')
 @click.option('--outdir', '-d', 
@@ -443,9 +478,9 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, hex_mode=False, finalize=
 #@click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @display_errors
 def start_backup(outdir, outfile, verbose=False):
-    '''Prompts user to remember a massive pass phrase and then \
-downloads AES-encrypted data backup. By default, saves into current directory using \
-a filename based on the date.'''
+    '''Creates 7z encrypted backup file after prompting user to remember a massive passphrase. \
+Downloads the AES-encrypted data backup and by default, saves into current directory using \
+a filename based on today's date.'''
 
     dev = ColdcardDevice(sn=force_serial)
 
@@ -506,5 +541,40 @@ def show_address(path, script, quiet=False, segwit=False, wrap=False):
         click.echo(addr)
     else:
         click.echo('Displaying address:\n\n%s\n' % addr)
+
+@main.command('pass')
+@click.argument('passphrase', required=False)
+@click.option('--passphrase', prompt=True, hide_input=True,
+              confirmation_prompt=False)
+@click.option('--verbose', '-v', is_flag=True, help='Show new root xpub')
+def bip39_passphrase(passphrase, verbose=False):
+    "Provide a BIP39 passphrase"
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    dev.check_mitm()
+
+    ok = dev.send_recv(CCProtocolPacker.bip39_passphrase(passphrase), timeout=None)
+    assert ok == None
+
+    print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
+    sys.stderr.flush()
+
+    while 1:
+        time.sleep(0.250)
+        done = dev.send_recv(CCProtocolPacker.get_passphrase_done(), timeout=None)
+        if done == None:
+            continue
+        break
+
+    print("\r                                  \r", end='', file=sys.stderr)
+    sys.stderr.flush()
+
+    if verbose:
+        xpub = done
+        click.echo(xpub)
+    else:
+        click.echo('Done.')
+
 
 # EOF

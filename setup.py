@@ -17,7 +17,6 @@ requirements = [
 
 cli_requirements = [
     'click>=6.7',
-    'pycoin==0.80',
 ]
 
 with open("README.md", "r") as fh:

@@ -108,6 +108,12 @@ class CCProtocolPacker:
         return b'stok'
 
     @staticmethod
+    def multisig_enroll(length, file_sha):
+        # multisig details must already be uploaded as a text file, this starts approval process.
+        assert len(file_sha) == 32
+        return pack('<4sI32s', b'enrl', length, file_sha)
+
+    @staticmethod
     def get_xpub(subpath='m'):
         # takes a string, like: m/44'/0'/23/23
         return b'xpub' + subpath.encode('ascii')

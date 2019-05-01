@@ -243,10 +243,18 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
 @click.argument('filename', type=click.File('rb'))
 @click.option('--blksize', default=MAX_BLK_LEN, 
             type=click.IntRange(256, MAX_BLK_LEN), help='Block size to use (testing)')
-def file_upload(filename, blksize):
+@click.option('--multisig', '-m', default=False, is_flag=True,
+                                    help='Attempt multisig enroll using file')
+def file_upload(filename, blksize, multisig=False):
     "Send file to Coldcard (PSBT transaction or firmware)"
 
-    real_file_upload(filename, blksize)
+    # NOTE: mostly for debug/dev usage.
+    dev = ColdcardDevice(sn=force_serial)
+
+    file_len, sha = real_file_upload(filename, blksize, dev=dev)
+
+    if multisig:
+        dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
 
 @main.command('upgrade')
 @click.argument('filename', type=click.File('rb'), metavar="FIRMWARE.dfu",
@@ -576,5 +584,75 @@ def bip39_passphrase(passphrase, verbose=False):
     else:
         click.echo('Done.')
 
+
+@main.command('multisig')
+@click.argument('name', type=str)
+@click.argument('xpubs', type=str, nargs=-1)
+@click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: all)', default=0)
+@click.option('--name', '-n', type=str, help='Wallet name', default='multisig')
+@click.option('--output-file', '-f', type=click.File('wt', lazy=True),
+                                help='Save configuration to file')
+@click.option('--dry-run', '-n', is_flag=True, help='Don\'t upload file to Coldcard')
+@click.option('--verbose', '-v', is_flag=True, help='Show file uploaded')
+def enroll_xpub(name, min_signers, xpubs, dry_run=False, output_file=None, verbose=False):
+    "Upload all co-signer's xpubs to create a multisig wallet"
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    dev.check_mitm()
+
+    my_xpub = dev.send_recv(CCProtocolPacker.get_xpub('m'), timeout=None)
+
+    xpubs = set(xpubs)
+    for xpub in xpubs:
+        if xpub[1:4] != 'pub':
+            click.echo(f"Doesn't look like an extended public key, per BIP32/SLIP32):\n{xpub}")
+            sys.exit(1)
+
+    # this coldcard's xpub is always included in set, but ok if dup on command line
+    if my_xpub not in xpubs:
+        xpubs.add(my_xpub)
+
+    N = len(xpubs)
+
+    if not (1 <= N < 20):
+        click.echo("Between 1 and 20 cosigner's xpubs are needed")
+        sys.exit(1)
+
+    if min_signers == 0:
+        min_signers = N 
+
+    if not (1 <= min_signers <= N):
+        click.echo(f"Minimum number of signers (M) must be between 1 and N={N}")
+        sys.exit(1)
+
+    if not (1 <= len(name) <= 20) or name != str(name.encode('utf8'), 'ascii', 'ignore'):
+        click.echo("Name must be between 1 and 20 characters (of ASCII).")
+        sys.exit(1)
+
+    # render into a template
+    config = f'name: {name}\npolicy: {min_signers} of {N}\n' + '\n'.join(sorted(xpubs)) + '\n'
+
+    if output_file:
+        output_file.write(config)
+        output_file.close()
+
+    if dry_run or verbose:
+        click.echo(config[:-1])
+
+    if dry_run:
+        sys.exit(0)
+
+    # buffer as a file.
+    fd = io.BytesIO(config.encode('ascii'))
+
+    # upload the file
+    file_len, sha = real_file_upload(fd, dev=dev)
+
+    # start the process on coldcard
+    ok = dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
+    assert ok == None
+
+    click.echo("Multisig enrollment started. Approve on Coldcard screen.")
 
 # EOF

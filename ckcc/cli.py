@@ -39,6 +39,12 @@ def my_hook(ty, val, tb):
         return _sys_excepthook(ty, val, tb)
 sys.excepthook=my_hook
 
+def xfp2str(xfp):
+    # Standardized way to show an xpub's fingerprint... it's a 4-byte string
+    # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
+    return b2a_hex(struct.pack('>I', xfp)).decode('ascii').upper()
+
+
 # Options we want for all commands
 @click.group()
 @click.option('--serial', '-s', default=None, metavar="HEX",
@@ -297,6 +303,7 @@ def get_fingerprint(swab):
         xfp = struct.unpack("<I", struct.pack(">I", xfp))[0]
 
     click.echo('0x%08x' % xfp)
+    click.echo(xfp2str(xfp))
 
 @main.command('version')
 def get_version():
@@ -518,37 +525,106 @@ a filename based on today's date.'''
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-@click.option('--script', '-r', default='', help='Redeem or witness script in hex (implies p2sh/p2wsh/p2sh-p2wsh)')
-def show_address(path, script, quiet=False, segwit=False, wrap=False):
+def show_address(path, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
     dev = ColdcardDevice(sn=force_serial)
 
-    if script:
-        # NOTE: this is of limited usefulness because wallets know the other keys
-        #       in a multisig and we do not. So this is as general-purpose as possible
-        #       and is intended for debug/educational purposes.
-        addr_fmt = AF_P2SH
-        if segwit:
-            addr_fmt = AF_P2WSH
-        if wrap:
-            addr_fmt |= AFC_WRAPPED
-
-        script = a2b_hex(script)
+    if wrap:
+        addr_fmt = AF_P2WPKH_P2SH
+    elif segwit:
+        addr_fmt = AF_P2WPKH
     else:
-        if wrap:
-            addr_fmt = AF_P2WPKH_P2SH
-        elif segwit:
-            addr_fmt = AF_P2WPKH
-        else:
-            addr_fmt = AF_CLASSIC
+        addr_fmt = AF_CLASSIC
 
-    addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt, script), timeout=None)
+    addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt), timeout=None)
 
     if quiet:
         click.echo(addr)
     else:
         click.echo('Displaying address:\n\n%s\n' % addr)
+
+def str_to_int_path(xfp, path):
+    # convert text  m/34'/33/44 into BIP174 binary compat format
+    # - include hex for fingerprint (m) as first arg
+
+    rv = [int(xfp, 16)]
+    for i in path.split('/'):
+        if i == 'm': continue
+        if not i: continue      # trailing or duplicated slashes
+        
+        if i[-1] in "'phHP":
+            assert len(i) >= 2, i
+            here = int(i[:-1]) | 0x80000000
+        else:
+            here = int(i)
+            assert 0 <= here < 0x80000000, here
+        
+        rv.append(here)
+
+    return rv
+
+
+@main.command('p2sh')
+@click.argument('script', type=str, nargs=1, required=True)
+@click.argument('fingerprints', type=str, nargs=-1, required=True)
+@click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: implied by script)', default=0)
+@click.option('--path_prefix', '-p', default="m/45'/", help='Common path derivation for all key to share (BIP45)')
+@click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
+@click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2wpkh)')
+@click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
+def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, segwit=False, wrap=False):
+    '''Show a multisig payment address on-screen
+
+    Append subkey path to fingerprint value (4369050F/1/0/0 for example) or omit for 0/0/0
+
+    This is provided as a demo or debug feature: you'll need the full redeem script (hex),
+    and the fingerprints and paths used to generate each public key inside that.
+    Order of fingerprint/path must match order of pubkeys in script.
+    '''
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    addr_fmt = AF_P2SH
+    if segwit:
+        addr_fmt = AF_P2WSH
+    if wrap:
+        addr_fmt = AF_P2WSH_P2SH
+
+    script = a2b_hex(script)
+    N = len(fingerprints)
+
+    if N <= 16:
+        if not min_signers:
+            assert N <= 15
+            min_signers = script[0] - 80
+        else:
+            assert min_signers == script[0], "M conficts with script"
+
+        assert script[-1] == 0xAE, "expect script to end with OP_CHECKMULTISIG"
+        assert script[-2] == 80+N, "second last byte should encode N"
+
+    xfp_paths = []
+    for idx, xfp in enumerate(fingerprints):
+        if '/' not in xfp:
+            # this isn't BIP45 compliant but we don't know the cosigner's index
+            # values, since they would have been suffled when the redeem script is sorted
+            p = '0/0/0'
+        else:
+            # better if all paths provided
+            xfp, p = xfp.split('/', 1)
+            p = path_prefix + p
+
+        xfp_paths.append(str_to_int_path(xfp, p))
+
+    addr = dev.send_recv(CCProtocolPacker.show_p2sh_address(
+                            min_signers, xfp_paths, script, addr_fmt=addr_fmt), timeout=None)
+
+    if quiet:
+        click.echo(addr)
+    else:
+        click.echo('Displaying address:\n\n%s\n' % addr)
+
 
 @main.command('pass')
 @click.argument('passphrase', required=False)
@@ -586,37 +662,39 @@ def bip39_passphrase(passphrase, verbose=False):
 
 
 @main.command('multisig')
-@click.argument('name', type=str)
-@click.argument('xpubs', type=str, nargs=-1)
 @click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: all)', default=0)
-@click.option('--name', '-n', type=str, help='Wallet name', default='multisig')
+@click.option('--signers', '-n', 'num_signers', type=int, help='N signers in wallet', default=3)
+@click.option('--name', '-l', type=str, help='Wallet name on Coldcard', default='Unnamed')
 @click.option('--output-file', '-f', type=click.File('wt', lazy=True),
                                 help='Save configuration to file')
-@click.option('--dry-run', '-n', is_flag=True, help='Don\'t upload file to Coldcard')
 @click.option('--verbose', '-v', is_flag=True, help='Show file uploaded')
-def enroll_xpub(name, min_signers, xpubs, dry_run=False, output_file=None, verbose=False):
-    "Upload all co-signer's xpubs to create a multisig wallet"
+@click.option('--path', '-p', default="m/45'", help="Derivation for key (default: BIP45 = m/45')")
+@click.option('--add', '-a', 'just_add', is_flag=True, help='Just show line required to add this Coldcard')
+def enroll_xpub(name, min_signers, path,  num_signers, dry_run=False, output_file=None, verbose=False, just_add=False):
+    '''
+Create a skeleton file which defines a multisig wallet.
+
+When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.
+'''
 
     dev = ColdcardDevice(sn=force_serial)
-
     dev.check_mitm()
 
-    my_xpub = dev.send_recv(CCProtocolPacker.get_xpub('m'), timeout=None)
+    xfp = dev.master_fingerprint
+    my_xpub = dev.send_recv(CCProtocolPacker.get_xpub(path), timeout=None)
+    new_line = "%s: %s" % (xfp2str(xfp), my_xpub)
 
-    xpubs = set(xpubs)
-    for xpub in xpubs:
-        if xpub[1:4] != 'pub':
-            click.echo(f"Doesn't look like an extended public key, per BIP32/SLIP32):\n{xpub}")
-            sys.exit(1)
+    if just_add:
+        click.echo(new_line)
+        sys.exit(0)
 
-    # this coldcard's xpub is always included in set, but ok if dup on command line
-    if my_xpub not in xpubs:
-        xpubs.add(my_xpub)
+    N = num_signers
 
-    N = len(xpubs)
+    if N < min_signers:
+        N = min_signers
 
-    if not (1 <= N < 20):
-        click.echo("Between 1 and 20 cosigner's xpubs are needed")
+    if not (1 <= N < 15):
+        click.echo("N must be 1..15")
         sys.exit(1)
 
     if min_signers == 0:
@@ -627,32 +705,21 @@ def enroll_xpub(name, min_signers, xpubs, dry_run=False, output_file=None, verbo
         sys.exit(1)
 
     if not (1 <= len(name) <= 20) or name != str(name.encode('utf8'), 'ascii', 'ignore'):
-        click.echo("Name must be between 1 and 20 characters (of ASCII).")
+        click.echo("Name must be between 1 and 20 characters of ASCII.")
         sys.exit(1)
 
     # render into a template
-    config = f'name: {name}\npolicy: {min_signers} of {N}\n' + '\n'.join(sorted(xpubs)) + '\n'
+    config = f'name: {name}\npolicy: {min_signers} of {N}\n\n#path: {path}\n{new_line}\n'
+    if num_signers != 1:
+        config += '\n'.join(f'#{i+2}# FINGERPRINT: xpub123123123123123' for i in range(num_signers-1))
+        config += '\n'
+
+    if verbose or not output_file:
+        click.echo(config[:-1])
 
     if output_file:
         output_file.write(config)
         output_file.close()
-
-    if dry_run or verbose:
-        click.echo(config[:-1])
-
-    if dry_run:
-        sys.exit(0)
-
-    # buffer as a file.
-    fd = io.BytesIO(config.encode('ascii'))
-
-    # upload the file
-    file_len, sha = real_file_upload(fd, dev=dev)
-
-    # start the process on coldcard
-    ok = dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
-    assert ok == None
-
-    click.echo("Multisig enrollment started. Approve on Coldcard screen.")
+        click.echo(f"Wrote to: {output_file.name}")
 
 # EOF

@@ -289,6 +289,27 @@ def get_xpub(subpath):
 
     click.echo(xpub)
 
+@main.command('pubkey')
+@click.argument('subpath', default='m')
+def get_pubkey(subpath):
+    '''Get the public key for a derivation path
+
+    Dump 33-byte (compressed, SEC encoded) public key value.
+    '''
+
+    try:
+        from pycoin.key.BIP32Node import BIP32Node
+    except:
+        raise click.Abort("pycoin must be installed, not found.")
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    xpub = dev.send_recv(CCProtocolPacker.get_xpub(subpath), timeout=None)
+
+    node = BIP32Node.from_hwif(xpub)
+
+    click.echo(b2a_hex(node.sec()))
+
 @main.command('xfp')
 @click.option('--swab', '-s', is_flag=True, help='Reverse endian of result (32-bit)')
 def get_fingerprint(swab):

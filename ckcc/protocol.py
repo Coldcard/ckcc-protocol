@@ -114,6 +114,11 @@ class CCProtocolPacker:
         return pack('<4sI32s', b'enrl', length, file_sha)
 
     @staticmethod
+    def multisig_check(M, N, xfp_xor):
+        # do we have a wallet already that matches M+N and xor(*xfps)?
+        return pack('<4s3I', b'msck', M, N, xfp_xor)
+
+    @staticmethod
     def get_xpub(subpath='m'):
         # takes a string, like: m/44'/0'/23/23
         return b'xpub' + subpath.encode('ascii')

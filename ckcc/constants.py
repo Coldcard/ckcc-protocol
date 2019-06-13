@@ -51,6 +51,7 @@ SUPPORTED_ADDR_FORMATS = frozenset([
 # BIP-174 aka PSBT defined values
 #
 PSBT_GLOBAL_UNSIGNED_TX     = const(0)
+PSBT_GLOBAL_XPUB            = const(1)
 
 PSBT_IN_NON_WITNESS_UTXO    = const(0)
 PSBT_IN_WITNESS_UTXO        = const(1)

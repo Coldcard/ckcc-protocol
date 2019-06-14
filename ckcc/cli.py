@@ -323,7 +323,6 @@ def get_fingerprint(swab):
     if swab:
         xfp = struct.unpack("<I", struct.pack(">I", xfp))[0]
 
-    click.echo('0x%08x' % xfp)
     click.echo(xfp2str(xfp))
 
 @main.command('version')

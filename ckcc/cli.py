@@ -590,7 +590,7 @@ def str_to_int_path(xfp, path):
 @click.argument('script', type=str, nargs=1, required=True)
 @click.argument('fingerprints', type=str, nargs=-1, required=True)
 @click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: implied by script)', default=0)
-@click.option('--path_prefix', '-p', default="m/45'/", help='Common path derivation for all key to share (BIP45)')
+@click.option('--path_prefix', '-p', default="m/45'", help='Common path derivation for all key to share (BIP45)')
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
@@ -628,13 +628,13 @@ def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, 
     xfp_paths = []
     for idx, xfp in enumerate(fingerprints):
         if '/' not in xfp:
-            # this isn't BIP45 compliant but we don't know the cosigner's index
-            # values, since they would have been suffled when the redeem script is sorted
-            p = '0/0/0'
+            # This isn't BIP45 compliant but we don't know the cosigner's index
+            # values, since they would have been shuffled when the redeem script is sorted
+            # Odd of this working, in general: near zero.
+            p = path_prefix + '/0/0/0'
         else:
             # better if all paths provided
             xfp, p = xfp.split('/', 1)
-            p = path_prefix + p
 
         xfp_paths.append(str_to_int_path(xfp, p))
 

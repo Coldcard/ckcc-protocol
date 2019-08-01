@@ -42,7 +42,7 @@ sys.excepthook=my_hook
 def xfp2str(xfp):
     # Standardized way to show an xpub's fingerprint... it's a 4-byte string
     # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
-    return b2a_hex(struct.pack('>I', xfp)).decode('ascii').upper()
+    return b2a_hex(struct.pack('<I', xfp)).decode('ascii').upper()
 
 
 # Options we want for all commands
@@ -321,10 +321,11 @@ def get_fingerprint(swab):
     assert xfp
 
     if swab:
-        xfp = struct.unpack("<I", struct.pack(">I", xfp))[0]
-
-    click.echo('0x%08x' % xfp)
-    click.echo(xfp2str(xfp))
+        # this is how we used to show XFP values: LE32 hex with 0x in front.
+        click.echo('0x%08x' % xfp)
+    else:
+        # network order = BE32 = top 32-bits of hash160(pubkey) = 4 bytes in bip32 serialization
+        click.echo(xfp2str(xfp))
 
 @main.command('version')
 def get_version():
@@ -630,7 +631,7 @@ def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, 
         if '/' not in xfp:
             # This isn't BIP45 compliant but we don't know the cosigner's index
             # values, since they would have been shuffled when the redeem script is sorted
-            # Odd of this working, in general: near zero.
+            # Odds of this working, in general: near zero.
             p = path_prefix + '/0/0/0'
         else:
             # better if all paths provided

@@ -28,7 +28,7 @@ setup(
     name='ckcc-protocol',
     version=__version__,
     packages=[ 'ckcc' ],
-    python_requires='>3.5.0',
+    python_requires='>3.6.0',
     install_requires=requirements,
     extras_require={
         'cli': cli_requirements,

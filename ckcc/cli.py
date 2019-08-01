@@ -570,7 +570,7 @@ def str_to_int_path(xfp, path):
     # convert text  m/34'/33/44 into BIP174 binary compat format
     # - include hex for fingerprint (m) as first arg
 
-    rv = [int(xfp, 16)]
+    rv = [struct.unpack('<I', a2b_hex(xfp))[0]]
     for i in path.split('/'):
         if i == 'm': continue
         if not i: continue      # trailing or duplicated slashes
@@ -591,18 +591,18 @@ def str_to_int_path(xfp, path):
 @click.argument('script', type=str, nargs=1, required=True)
 @click.argument('fingerprints', type=str, nargs=-1, required=True)
 @click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: implied by script)', default=0)
-@click.option('--path_prefix', '-p', default="m/45'", help='Common path derivation for all key to share (BIP45)')
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, segwit=False, wrap=False):
+def show_address(script, fingerprints, min_signers=0, quiet=False, segwit=False, wrap=False):
     '''Show a multisig payment address on-screen
 
-    Append subkey path to fingerprint value (4369050F/1/0/0 for example) or omit for 0/0/0
+    Needs a redeem script and list of fingerprint/path (4369050F/1/0/0 for example).
 
-    This is provided as a demo or debug feature: you'll need the full redeem script (hex),
-    and the fingerprints and paths used to generate each public key inside that.
-    Order of fingerprint/path must match order of pubkeys in script.
+    This is provided as a demo or debug feature. You'll need need some way to
+    generate the full redeem script (hex), and the fingerprints and paths used to
+    generate each public key inside that. The order of fingerprint/paths must
+    match order of pubkeys in the script.
     '''
 
     dev = ColdcardDevice(sn=force_serial)
@@ -628,14 +628,8 @@ def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, 
 
     xfp_paths = []
     for idx, xfp in enumerate(fingerprints):
-        if '/' not in xfp:
-            # This isn't BIP45 compliant but we don't know the cosigner's index
-            # values, since they would have been shuffled when the redeem script is sorted
-            # Odds of this working, in general: near zero.
-            p = path_prefix + '/0/0/0'
-        else:
-            # better if all paths provided
-            xfp, p = xfp.split('/', 1)
+        assert '/' in xfp, 'Needs a XFP/path: ' + xfp
+        xfp, p = xfp.split('/', 1)
 
         xfp_paths.append(str_to_int_path(xfp, p))
 

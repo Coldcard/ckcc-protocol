@@ -116,7 +116,7 @@ Uploading  [####################################]  100%
 Waiting for OK on the Coldcard...
 Ok! Downloading result (5119 bytes)
 
-%  hd out.psbt | head -3
+%  hexdump -C out.psbt | head -3
 00000000  70 73 62 74 ff 01 00 fd  22 04 02 00 00 00 04 3f  |psbt...."......?|
 00000010  ee 16 30 9d 14 82 36 dd  c8 3e 9e 4f 94 47 83 00  |..0...6..>.O.G..|
 00000020  c2 23 e1 06 22 1b 02 0e  bd c8 1c 71 79 7d 3c 02  |.#.."......qy}<.|

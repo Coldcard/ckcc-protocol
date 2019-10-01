@@ -590,11 +590,10 @@ def str_to_int_path(xfp, path):
 @main.command('p2sh')
 @click.argument('script', type=str, nargs=1, required=True)
 @click.argument('fingerprints', type=str, nargs=-1, required=True)
-@click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: implied by script)', default=0)
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(script, fingerprints, min_signers=0, quiet=False, segwit=False, wrap=False):
+def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
     '''Show a multisig payment address on-screen
 
     Needs a redeem script and list of fingerprint/path (4369050F/1/0/0 for example).
@@ -616,15 +615,13 @@ def show_address(script, fingerprints, min_signers=0, quiet=False, segwit=False,
     script = a2b_hex(script)
     N = len(fingerprints)
 
-    if N <= 16:
-        if not min_signers:
-            assert N <= 15
-            min_signers = script[0] - 80
-        else:
-            assert min_signers == script[0], "M conficts with script"
+    assert 1 <= N <= 15, "bad N"
 
-        assert script[-1] == 0xAE, "expect script to end with OP_CHECKMULTISIG"
-        assert script[-2] == 80+N, "second last byte should encode N"
+    min_signers = script[0] - 80
+    assert 1 <= min_signers <= N, "bad M"
+
+    assert script[-1] == 0xAE, "expect script to end with OP_CHECKMULTISIG"
+    assert script[-2] == 80+N, "second last byte should encode N"
 
     xfp_paths = []
     for idx, xfp in enumerate(fingerprints):

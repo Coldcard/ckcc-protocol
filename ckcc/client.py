@@ -138,6 +138,10 @@ class ColdcardDevice:
         while 1:
             buf = self.dev.read(64, timeout_ms=(timeout or 0))
 
+            if not buf and timeout:
+                # give it another try
+                buf = self.dev.read(64, timeout_ms=timeout)
+
             assert buf, "timeout reading USB EP"
 
             # (trusting more than usual here)

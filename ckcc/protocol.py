@@ -153,6 +153,11 @@ class CCProtocolPacker:
         return rv
 
     @staticmethod
+    def block_chain():
+        # ask what blockchain it's set for; expect "BTC" or "XTN"
+        return b'blkc'
+
+    @staticmethod
     def sim_keypress(key):
         # Simulator ONLY: pretend a key is pressed
         return b'XKEY' + key

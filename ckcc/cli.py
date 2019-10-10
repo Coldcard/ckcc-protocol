@@ -337,6 +337,20 @@ def get_version():
 
     click.echo(v)
 
+@main.command('chain')
+def get_block_chain():
+    '''Get which blockchain (Bitcoin/Testnet) is configured.
+
+    BTC=>Bitcoin  or  XTN=>Bitcoin Testnet
+    '''
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    code = dev.send_recv(CCProtocolPacker.block_chain())
+
+    click.echo(code)
+
+
 @main.command('eval')
 @click.argument('stmt', nargs=-1)
 def run_eval(stmt):

@@ -24,6 +24,9 @@ MAX_UPLOAD_LEN = const(2*MAX_TXN_LEN)
 # Max length of text messages for signing
 MSG_SIGNING_MAX_LENGTH = const(240)
 
+# Max depth for derived keys, in PSBT files, and USB commands
+MAX_PATH_DEPTH = const(12)
+
 # Bit values for address types
 AFC_PUBKEY      = const(0x01)       # pay to hash of pubkey
 AFC_SEGWIT      = const(0x02)       # requires a witness to spend

@@ -24,6 +24,14 @@ MAX_UPLOAD_LEN = const(2*MAX_TXN_LEN)
 # Max length of text messages for signing
 MSG_SIGNING_MAX_LENGTH = const(240)
 
+# Types of user auth we support
+USER_AUTH_TOTP = const(1)      # RFC6238
+USER_AUTH_HOTP = const(2)      # RFC4226
+USER_AUTH_HMAC = const(3)      # PBKDF2('hmac-sha256', secret, sha256(psbt), PBKDF2_ITER_COUNT)
+
+MAX_USERNAME_LEN = 16
+PBKDF2_ITER_COUNT = 2500
+
 # Max depth for derived keys, in PSBT files, and USB commands
 MAX_PATH_DEPTH = const(12)
 

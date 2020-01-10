@@ -167,6 +167,42 @@ class CCProtocolPacker:
         # one time only: put into bag, or readback bag
         return b'bagi' + bytes(new_number)
 
+    @staticmethod
+    def hsm_start(length=0, file_sha=b''):
+        if length:
+            # New policy already be uploaded as a JSON file, get approval and start.
+            assert len(file_sha) == 32
+            return pack('<4sI32s', b'hsms', length, file_sha)
+        else:
+            # Use policy on device already. Confirmation still required by local user.
+            return b'hsms'
+
+    @staticmethod
+    def hsm_status():
+        # get current status of HSM mode and/or policy defined already. Returns JSON
+        return b'hsts'
+
+    @staticmethod
+    def create_user(username, auth_mode, secret=b''):
+        # create username, with pre-shared secret/password, or we generate.
+        # auth_model should be one of USER_AUTH_*
+        assert 1 <= len(username) <= MAX_USERNAME_LEN
+        assert len(secret) in { 0, 10, 20, 32}
+        return pack('<4sBBB', b'nwur', auth_mode, len(username), len(secret)) + username + secret
+
+    @staticmethod
+    def delete_user(username):
+        # remove a username and forget secret; cannot be used in HSM mode (only before)
+        assert 0 < len(username) <= MAX_USERNAME_LEN
+        return pack('<4sB', b'rmur', len(username)) + username
+
+    @staticmethod
+    def user_auth(username, token, totp_time=0):
+        # HSM mode: try an authentication method for a username
+        assert 0 < len(username) <= 16
+        assert 6 <= len(token) <= 32
+        return pack('<4sIBB', b'user', totp_time, len(username), len(token)) + username + token
+
 
 class CCProtocolUnpacker:
     # Take a binary response, and turn it into a python object

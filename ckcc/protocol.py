@@ -81,10 +81,11 @@ class CCProtocolPacker:
         return b'sha2'
 
     @staticmethod
-    def sign_transaction(length, file_sha, finalize=False):
+    def sign_transaction(length, file_sha, finalize=False, flags=0x0):
         # must have already uploaded binary, and give expected sha256
         assert len(file_sha) == 32
-        return pack('<4sII32s', b'stxn', length, int(finalize), file_sha)
+        flags |= (0x01 if finalize else 0x00)
+        return pack('<4sII32s', b'stxn', length, int(flags), file_sha)
 
     @staticmethod
     def sign_message(raw_msg, subpath='m', addr_fmt=AF_CLASSIC):
@@ -186,6 +187,7 @@ class CCProtocolPacker:
     def create_user(username, auth_mode, secret=b''):
         # create username, with pre-shared secret/password, or we generate.
         # auth_model should be one of USER_AUTH_*
+        # for TOTP/HOTP, secret can be empty. Set bit 0x80 in auth_mode and QR will be used
         assert 1 <= len(username) <= MAX_USERNAME_LEN
         assert len(secret) in { 0, 10, 20, 32}
         return pack('<4sBBB', b'nwur', auth_mode, len(username), len(secret)) + username + secret
@@ -202,6 +204,11 @@ class CCProtocolPacker:
         assert 0 < len(username) <= 16
         assert 6 <= len(token) <= 32
         return pack('<4sIBB', b'user', totp_time, len(username), len(token)) + username + token
+
+    @staticmethod
+    def get_storage_locker():
+        # returns up to 414 bytes of user-defined sensitive data
+        return b'gslr'
 
 
 class CCProtocolUnpacker:

@@ -560,10 +560,11 @@ a filename based on today's date.'''
     click.echo("Wrote %d bytes into: %s\nSHA256: %s" % (len(result), fn, str(b2a_hex(chk), 'ascii')))
         
 @main.command('addr')
-@click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show')
+@click.argument('path', default=BIP44_FIRST, metavar='[m/1/2/3]', required=False)
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
+@click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show (or first arg)')
 def show_address(path, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
@@ -753,7 +754,7 @@ When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.
         click.echo(f"Wrote to: {output_file.name}")
 
 @main.command('hsm-start')
-@click.option('--policy', '-f', type=click.Path(exists=True,dir_okay=False), metavar="policy.json")
+@click.argument('policy', type=click.Path(exists=True,dir_okay=False), metavar="policy.json", required=False)
 @click.option('--dry-run', '-n', is_flag=True, help="Just validate file, don't upload")
 def hsm_setup(policy=None, dry_run=False):
     '''
@@ -805,20 +806,22 @@ Is it running, what is the policy (summary only).
 
 @main.command('user')
 @click.argument('username', type=str, metavar="USERNAME", required=True)
-@click.option('--totp-create', '-t', is_flag=True, help='Do TOTP and let Coldcard pick secret')
+@click.option('--totp', '-t', 'totp_create', is_flag=True, help='Do TOTP and let Coldcard pick secret')
+@click.option('--pass', 'pick_pass', is_flag=True, help='Use a password picked by Coldcard')
 @click.option('--ask-pass', '-a', is_flag=True, help='Define password here (interactive)')
 @click.option('--totp-secret', '-s', help='BASE32 encoded secret for TOTP 2FA method (not great)')
 @click.option('--text-secret', '-p', help='Provide password on command line (not great)')
 @click.option('--delete', '-d', 'do_delete', is_flag=True, help='Remove a user by name')
+@click.option('--show-qr', '-q', is_flag=True, help='Show enroll QR contents (locally)')
 @click.option('--hotp', is_flag=True, help='Use HOTP instead of TOTP (dev only)')
-@click.option('--show-qr', '-q', is_flag=True, help='Show enroll QR contents')
 def new_user(username, totp_create=False, totp_secret=None, text_secret=None, ask_pass=False,
-                do_delete=False, debug=False, show_qr=False, hotp=False):
+                do_delete=False, debug=False, show_qr=False, hotp=False, pick_pass=False):
     '''
 Create a new user on the Coldcard for HSM policy (also delete).
 
 You can input a password (interactively), or once can be picked
-by the Coldcard.
+by the Coldcard. When possible the QR to enrol your app will
+be shown on the Coldcard screen.
 '''
     from base64 import b32encode, b32decode
 
@@ -836,34 +839,41 @@ by the Coldcard.
     if ask_pass:
         assert not text_secret, "dont give and ask for password"
         text_secret = click.prompt('Password (hidden)', hide_input=True, confirmation_prompt=True)
+        mode = USER_AUTH_HMAC
 
     if totp_secret:
         secret = b32decode(totp_secret, casefold=True)
         assert len(secret) in {10, 20}
         mode = USER_AUTH_TOTP
-    elif totp_create:
-        secret = b''
-        mode = USER_AUTH_TOTP
     elif hotp:
         mode = USER_AUTH_HOTP
         secret = b''
-    else:
-        secret = dev.hash_password(text_secret.encode('utf8')) if text_secret else b''
+    elif pick_pass:
         mode = USER_AUTH_HMAC
+        secret = b''
+    else:
+        # default is TOTP
+        secret = b''
+        mode = USER_AUTH_TOTP
+    
+    if mode == USER_AUTH_HMAC:
+        # default is text passwords
+        secret = dev.hash_password(text_secret.encode('utf8')) if text_secret else b''
         assert not show_qr, 'QR not appropriate for text passwords'
 
-    if hotp:
-        mode = USER_AUTH_HOTP
+    if not secret and not show_qr:
+        # ask the Coldcard to show the QR (for password or TOTP shared secret)
+        mode |= 0x80
 
     new_secret = dev.send_recv(CCProtocolPacker.create_user(username, mode, secret))
 
-    if show_qr:
+    if show_qr and new_secret:
         # format the URL thing ... needs a spec
         username = username.decode('ascii')
         secret = new_secret or b32encode(secret).decode('ascii')
         mode = 'hotp' if mode == USER_AUTH_HOTP else 'totp'
         click.echo(f'otpauth://{mode}/{username}?secret={secret}&issuer=Coldcard%20{dev.serial}')
-    elif not text_secret:
+    elif not text_secret and new_secret:
         click.echo(f'New password is: {new_secret}')
     else:
         click.echo('Done')
@@ -936,5 +946,15 @@ password, the PSBT file in question must be provided.
         click.echo("Correct or queued")
     else:
         click.echo(f'Problem: {resp}')
+
+@main.command('get-locker')
+def get_storage_locker():
+    "Get the value held in the Storage Locker (not Bitcoin related, reserved for HSM use)"
+
+    dev = ColdcardDevice(sn=force_serial)
+
+    ls = dev.send_recv(CCProtocolPacker.get_storage_locker(), timeout=None)
+
+    click.echo(ls)
 
 # EOF

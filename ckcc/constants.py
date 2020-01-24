@@ -25,9 +25,10 @@ MAX_UPLOAD_LEN = const(2*MAX_TXN_LEN)
 MSG_SIGNING_MAX_LENGTH = const(240)
 
 # Types of user auth we support
-USER_AUTH_TOTP = const(1)      # RFC6238
-USER_AUTH_HOTP = const(2)      # RFC4226
-USER_AUTH_HMAC = const(3)      # PBKDF2('hmac-sha256', secret, sha256(psbt), PBKDF2_ITER_COUNT)
+USER_AUTH_TOTP = const(1)       # RFC6238
+USER_AUTH_HOTP = const(2)       # RFC4226
+USER_AUTH_HMAC = const(3)       # PBKDF2('hmac-sha256', secret, sha256(psbt), PBKDF2_ITER_COUNT)
+USER_AUTH_SHOW_QR = const(0x80) # show secret on Coldcard screen (best for TOTP enroll)
 
 MAX_USERNAME_LEN = 16
 PBKDF2_ITER_COUNT = 2500

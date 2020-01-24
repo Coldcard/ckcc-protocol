@@ -863,7 +863,7 @@ be shown on the Coldcard screen.
 
     if not secret and not show_qr:
         # ask the Coldcard to show the QR (for password or TOTP shared secret)
-        mode |= 0x80
+        mode |= USER_AUTH_SHOW_QR
 
     new_secret = dev.send_recv(CCProtocolPacker.create_user(username, mode, secret))
 

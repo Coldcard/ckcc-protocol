@@ -347,6 +347,7 @@ class UnixSimulatorPipe:
         try:
             self.pipe.connect(path)
         except FileNotFoundError:
+            self.close()
             raise RuntimeError("Cannot connect to simulator. Is it running?")
 
         instance = 0

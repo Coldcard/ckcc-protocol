@@ -26,7 +26,7 @@ from ckcc.constants import (
     AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse
+from ckcc.utils import dfu_parse, calc_local_pincode
 
 global force_serial
 force_serial = None
@@ -877,6 +877,32 @@ be shown on the Coldcard screen.
         click.echo(f'New password is: {new_secret}')
     else:
         click.echo('Done')
+
+@main.command('local-conf')
+@click.argument('psbt-file', type=click.File('rb'), required=True, metavar="Binary PSBT")
+@click.option('--next', '-n', 'next_code', type=str, help='next_local_code from Coldcard (default: ask it)')
+def user_auth(psbt_file, next_code=None):
+    '''
+Generate the 6-digit code needed for a specific PSBT file to authorize
+it's signing on the Coldcard in HSM mode.
+'''
+
+    if not next_code:
+        dev = ColdcardDevice(sn=force_serial)
+        dev.check_mitm()
+
+        resp = dev.send_recv(CCProtocolPacker.hsm_status())
+        o = json.loads(resp)
+
+        assert o['active'], "Coldcard not in HSM mode"
+
+        next_code = o['next_local_code']
+
+    psbt_hash = sha256(psbt_file.read()).digest()
+
+    rv = calc_local_pincode(psbt_hash, next_code)
+
+    print("Local authorization code is:\n\n\t%s\n" % rv)
 
 @main.command('auth')
 @click.argument('username', type=str, metavar="USERNAME", required=True)

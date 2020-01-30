@@ -11,6 +11,12 @@ class CCProtoError(RuntimeError):
     def __str__(self):
         return self.args[0]
 
+class CCFramingError(CCProtoError):
+    # Typically framing errors are caused by multiple
+    # programs trying to talk to Coldcard at same time,
+    # and the encryption state gets confused.
+    pass
+
 class CCUserRefused(RuntimeError):
     def __str__(self):
         return 'You refused permission to do the operation'
@@ -225,7 +231,7 @@ class CCProtocolUnpacker:
 
         d = getattr(cls, sign, cls)
         if d is cls:
-            raise CCProtoError('Unknown response signature: ' + repr(sign))
+            raise CCFramingError('Unknown response signature: ' + repr(sign))
 
         return d(msg)
         
@@ -239,7 +245,7 @@ class CCProtocolUnpacker:
 
     # low-level errors
     def fram(msg):
-        raise CCProtoError("Framing Error", str(msg[4:], 'utf8'))
+        raise CCFramingError("Framing Error", str(msg[4:], 'utf8'))
     def err_(msg):
         raise CCProtoError("Remote Error: " + str(msg[4:], 'utf8', 'ignore'), msg[4:])
 

@@ -247,7 +247,7 @@ class CCProtocolUnpacker:
     def fram(msg):
         raise CCFramingError("Framing Error", str(msg[4:], 'utf8'))
     def err_(msg):
-        raise CCProtoError("Remote Error: " + str(msg[4:], 'utf8', 'ignore'), msg[4:])
+        raise CCProtoError("Coldcard Error: " + str(msg[4:], 'utf8', 'ignore'), msg[4:])
 
     def refu(msg):
         # user didn't want to approve something

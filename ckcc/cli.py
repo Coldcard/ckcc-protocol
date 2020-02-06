@@ -22,8 +22,8 @@ from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
 from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN
 from ckcc.constants import USER_AUTH_HMAC, USER_AUTH_TOTP, USER_AUTH_HOTP, USER_AUTH_SHOW_QR
-from ckcc.constants import (
-    AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
+from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH
+from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse, calc_local_pincode
@@ -208,7 +208,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
         fd.seek(offset)
 
     click.echo("%d bytes (start @ %d) to send from %r" % (sz, fd.tell(), 
-            os.path.basename(fd.name) if hasattr(fd, 'name') else 'memory'))
+            os.path.basename(fd.name) if hasattr(fd, 'name') else 'memory'), err=1)
 
     left = sz
     chk = sha256()
@@ -226,8 +226,8 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
     result = dev.send_recv(CCProtocolPacker.sha256())
     assert len(result) == 32
     if result != expect:
-        click.echo("Wrong checksum:\nexpect: %s\n   got: %s" % (b2a_hex(expect).decode('ascii'),
-                                                              b2a_hex(result).decode('ascii')))
+        click.echo("Wrong checksum:\nexpect: %s\n   got: %s" 
+                    % (b2a_hex(expect).decode('ascii'), b2a_hex(result).decode('ascii')), err=1)
         sys.exit(1)
 
     if not do_upgrade:
@@ -245,7 +245,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
     assert expect == final_chk, "Checksum mismatch after all that?"
 
     if do_reboot:
-        click.echo("Upgrade started. Observe Coldcard screen for progress.")
+        click.echo("Upgrade started. Observe Coldcard screen for progress.", err=1)
         dev.send_recv(CCProtocolPacker.reboot())
 
 @main.command('upload')
@@ -464,23 +464,23 @@ def wait_and_download(dev, req, fn):
 
     # download the result.
 
-    click.echo("Ok! Downloading result (%d bytes)" % result_len)
+    click.echo("Ok! Downloading result (%d bytes)" % result_len, err=1)
     result = dev.download_file(result_len, result_sha, file_number=fn)
 
     return result, result_sha
     
 @main.command('sign')
 @click.argument('psbt_in', type=click.File('rb'))
-@click.argument('psbt_out', type=click.File('wb'))
+@click.argument('psbt_out', type=click.File('wb'), required=False)
 @click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
+@click.option('--visualize', '-z', is_flag=True, help='Show text of Coldcard\'s interpretation of the transaction (does not create transaction, no interaction needed)')
+@click.option('--signed', '-s', is_flag=True, help='Include a signature over visualization text')
 @click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
 @click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=False, finalize=False):
+def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_mode=False, finalize=False, visualize=False, signed=False):
     "Approve a spending transaction by signing it on Coldcard"
-
-    # NOTE: not enforcing policy here on msg contents, so we can define that on product
 
     dev = ColdcardDevice(sn=force_serial)
     dev.check_mitm()
@@ -502,8 +502,16 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=
     # upload the transaction
     txn_len, sha = real_file_upload(psbt_in, dev=dev)
 
+    flags = 0x0
+    if visualize or signed:
+        flags |= STXN_VISUALIZE
+        if signed:
+            flags |= STXN_SIGNED
+    elif finalize:
+        flags |= STXN_FINALIZE
+
     # start the signing process
-    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, finalize=finalize), timeout=None)
+    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, flags=flags), timeout=None)
     assert ok == None
 
     # errors will raise here, no need for error display
@@ -514,13 +522,22 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=
     # an exception would have occured. Most people will want hex here, but
     # resisting the urge to force it.
 
-    # save it
-    if hex_mode:
-        result = b2a_hex(result)
-    elif b64_mode:
-        result = b64encode(result)
+    if visualize:
+        if psbt_out:
+            psbt_out.write(result)
+        else:
+            click.echo(result, nl=False)
+    else:
+        # save it
+        if hex_mode:
+            result = b2a_hex(result)
+        elif b64_mode or (not psbt_out and os.isatty(0)):
+            result = b64encode(result)
 
-    psbt_out.write(result)
+        if psbt_out:
+            psbt_out.write(result)
+        else:
+            click.echo(result)
 
 @main.command('backup')
 @click.option('--outdir', '-d', 

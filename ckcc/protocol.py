@@ -90,7 +90,7 @@ class CCProtocolPacker:
     def sign_transaction(length, file_sha, finalize=False, flags=0x0):
         # must have already uploaded binary, and give expected sha256
         assert len(file_sha) == 32
-        flags |= (0x01 if finalize else 0x00)
+        flags |= (STXN_FINALIZE if finalize else 0x00)
         return pack('<4sII32s', b'stxn', length, int(flags), file_sha)
 
     @staticmethod

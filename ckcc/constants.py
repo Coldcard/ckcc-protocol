@@ -36,6 +36,12 @@ PBKDF2_ITER_COUNT = 2500
 # Max depth for derived keys, in PSBT files, and USB commands
 MAX_PATH_DEPTH = const(12)
 
+# Bitmask used in sign_transaction (stxn) command
+STXN_FINALIZE       = const(0x01)
+STXN_VISUALIZE      = const(0x02)
+STXN_SIGNED         = const(0x04)
+STXN_FLAGS_MASK     = const(0x07)
+
 # Bit values for address types
 AFC_PUBKEY      = const(0x01)       # pay to hash of pubkey
 AFC_SEGWIT      = const(0x02)       # requires a witness to spend

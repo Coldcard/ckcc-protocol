@@ -95,7 +95,7 @@ class ColdcardDevice:
 
         assert self.dev.get_serial_number_string() == self.serial
 
-    def send_recv(self, msg, expect_errors=False, verbose=0, timeout=1000, encrypt=True):
+    def send_recv(self, msg, expect_errors=False, verbose=0, timeout=3000, encrypt=True):
         # first byte of each 64-byte packet encodes length or packet-offset
         assert 4 <= len(msg) <= MAX_MSG_LEN, "msg length: %d" % len(msg)
 
@@ -346,7 +346,7 @@ class UnixSimulatorPipe:
         self.pipe = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
             self.pipe.connect(path)
-        except FileNotFoundError:
+        except:
             self.close()
             raise RuntimeError("Cannot connect to simulator. Is it running?")
 

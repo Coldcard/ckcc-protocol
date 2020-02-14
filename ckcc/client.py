@@ -327,6 +327,15 @@ class ColdcardDevice:
 
         return data
 
+    def hash_password(self, text_password):
+        # Turn text password into a key for use in HSM auth protocol
+        from hashlib import pbkdf2_hmac, sha256
+        from .constants import PBKDF2_ITER_COUNT
+
+        salt = sha256(b'pepper' + self.serial.encode('ascii')).digest()
+
+        return pbkdf2_hmac('sha256', text_password, salt, PBKDF2_ITER_COUNT)
+
 
 class UnixSimulatorPipe:
     # Use a UNIX pipe to the simulator instead of a real USB connection.
@@ -338,6 +347,7 @@ class UnixSimulatorPipe:
         try:
             self.pipe.connect(path)
         except FileNotFoundError:
+            self.close()
             raise RuntimeError("Cannot connect to simulator. Is it running?")
 
         instance = 0

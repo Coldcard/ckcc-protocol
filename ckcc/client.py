@@ -90,7 +90,7 @@ class ColdcardDevice:
 
         # check the above all worked
         err = self.dev.error()
-        if err != '':
+        if err != '' and err != 'hid_error is not implemented yet':
             raise RuntimeError('hidapi: '+err)
 
         assert self.dev.get_serial_number_string() == self.serial

@@ -836,8 +836,8 @@ def new_user(username, totp_create=False, totp_secret=None, text_secret=None, as
     '''
 Create a new user on the Coldcard for HSM policy (also delete).
 
-You can input a password (interactively), or once can be picked
-by the Coldcard. When possible the QR to enrol your app will
+You can input a password (interactively), or one can be picked
+by the Coldcard. When possible the QR to enrol your 2FA app will
 be shown on the Coldcard screen.
 '''
     from base64 import b32encode, b32decode

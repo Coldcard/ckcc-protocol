@@ -823,7 +823,7 @@ Is it running, what is the policy (summary only).
 
 @main.command('user')
 @click.argument('username', type=str, metavar="USERNAME", required=True)
-@click.option('--totp', '-t', 'totp_create', is_flag=True, help='Do TOTP and let Coldcard pick secret')
+@click.option('--totp', '-t', 'totp_create', is_flag=True, help='Do TOTP and let Coldcard pick secret (default)')
 @click.option('--pass', 'pick_pass', is_flag=True, help='Use a password picked by Coldcard')
 @click.option('--ask-pass', '-a', is_flag=True, help='Define password here (interactive)')
 @click.option('--totp-secret', '-s', help='BASE32 encoded secret for TOTP 2FA method (not great)')
@@ -865,9 +865,8 @@ be shown on the Coldcard screen.
     elif hotp:
         mode = USER_AUTH_HOTP
         secret = b''
-    elif pick_pass:
+    elif pick_pass or text_secret:
         mode = USER_AUTH_HMAC
-        secret = b''
     else:
         # default is TOTP
         secret = b''

@@ -219,8 +219,8 @@ class ColdcardDevice:
         # - count must start at zero, and increment in LSB for each block.
         import pyaes
 
-        self.encrypt_request = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).decrypt
-        self.decrypt_response = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).encrypt
+        self.encrypt_request = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).encrypt
+        self.decrypt_response = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).decrypt
 
     def start_encryption(self):
         # setup encryption on the link

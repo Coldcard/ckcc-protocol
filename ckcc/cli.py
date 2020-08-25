@@ -403,7 +403,7 @@ def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit
     # standard very much still in flux, see: <https://github.com/bitcoin/bitcoin/issues/10542>
 
     # not enforcing policy here on msg contents, so we can define that on product
-    message = message.encode('ascii')
+    message = message.encode('ascii') if not isinstance(message, bytes) else message
 
     ok = dev.send_recv(CCProtocolPacker.sign_message(message, path, addr_fmt), timeout=None)
     assert ok == None

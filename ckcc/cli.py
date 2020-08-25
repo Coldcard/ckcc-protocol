@@ -198,7 +198,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
 
             magic = struct.unpack_from("<I", hdr)[0]
             #print("hdr @ 0x%x: %s" % (FW_HEADER_OFFSET, b2a_hex(hdr)))
-        except:
+        except Exception:
             magic = None
 
         if magic != FW_HEADER_MAGIC:
@@ -302,7 +302,7 @@ def get_pubkey(subpath):
 
     try:
         from pycoin.key.BIP32Node import BIP32Node
-    except:
+    except Exception:
         raise click.Abort("pycoin must be installed, not found.")
 
     dev = ColdcardDevice(sn=force_serial)

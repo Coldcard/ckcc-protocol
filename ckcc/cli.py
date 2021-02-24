@@ -30,6 +30,8 @@ from ckcc.utils import dfu_parse, calc_local_pincode
 
 global force_serial
 force_serial = None
+global force_plaintext
+force_plaintext = False
 
 # Cleanup display (supress traceback) for user-feedback exceptions
 _sys_excepthook = sys.excepthook
@@ -47,6 +49,8 @@ def xfp2str(xfp):
     # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
     return b2a_hex(struct.pack('<I', xfp)).decode('ascii').upper()
 
+def get_device():
+    return ColdcardDevice(sn=force_serial, encrypt=not force_plaintext)
 
 # Options we want for all commands
 @click.group()
@@ -54,9 +58,12 @@ def xfp2str(xfp):
                     help="Operate on specific unit (default: first found)")
 @click.option('--simulator', '-x', default=False, is_flag=True,
                     help="Connect to the simulator via Unix socket")
-def main(serial, simulator):
-    global force_serial
+@click.option('--plaintext', '-P', default=False, is_flag=True,
+                    help="Disable USB link-layer encryption")
+def main(serial, simulator, plaintext):
+    global force_serial, force_plaintext
     force_serial = serial
+    force_plaintext = plaintext
 
     if simulator:
         force_serial = '/tmp/ckcc-simulator.sock'
@@ -123,7 +130,7 @@ def _list():
 @main.command()
 def logout():
     "Securely logout of device (will require replug to start over)"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     resp = dev.send_recv(CCProtocolPacker.logout())
     print("Device says: %r" % resp if resp else "Okay!")
@@ -131,7 +138,7 @@ def logout():
 @main.command()
 def reboot():
     "Reboot coldcard, force relogin and start over"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     resp = dev.send_recv(CCProtocolPacker.reboot())
     print("Device says: %r" % resp if resp else "Okay!")
@@ -140,7 +147,7 @@ def reboot():
 @click.option('--number', '-n', metavar='BAG_NUMBER', default=None)
 def bag_number(number):
     "Factory: set or read bag number -- single use only!"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     nn = b'' if not number else number.encode('ascii')
 
@@ -153,7 +160,7 @@ def bag_number(number):
             type=click.IntRange(0,255), help='If set, use this value on wire.')
 def usb_test(single):
     "Test USB connection (debug/dev)"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     rng = []
     rng.extend(range(55, 66))       # buggy lengths are around 64 
@@ -174,7 +181,7 @@ def usb_test(single):
 
 
 def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, dev=None):
-    dev = dev or ColdcardDevice(sn=force_serial)
+    dev = dev or get_device()
 
     # learn size (portable way)
     offset = 0
@@ -258,7 +265,7 @@ def file_upload(filename, blksize, multisig=False):
     "Send file to Coldcard (PSBT transaction or firmware)"
 
     # NOTE: mostly for debug/dev usage.
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     file_len, sha = real_file_upload(filename, blksize, dev=dev)
 
@@ -282,7 +289,7 @@ BIP44_FIRST = "m/44'/0'/0'/0"
 def get_xpub(subpath):
     "Get the XPUB for this wallet (master level, or any derivation)"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     if len(subpath) == 1:
         if subpath[0] == 'bip44':
@@ -305,7 +312,7 @@ def get_pubkey(subpath):
     except:
         raise click.Abort("pycoin must be installed, not found.")
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     xpub = dev.send_recv(CCProtocolPacker.get_xpub(subpath), timeout=None)
 
@@ -318,7 +325,7 @@ def get_pubkey(subpath):
 def get_fingerprint(swab):
     "Get the fingerprint for this wallet (master level)"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     xfp = dev.master_fingerprint
     assert xfp
@@ -334,7 +341,7 @@ def get_fingerprint(swab):
 def get_version():
     "Get the version of the firmware installed"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     v = dev.send_recv(CCProtocolPacker.version())
 
@@ -347,7 +354,7 @@ def get_block_chain():
     BTC=>Bitcoin  or  XTN=>Bitcoin Testnet
     '''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     code = dev.send_recv(CCProtocolPacker.block_chain())
 
@@ -359,7 +366,7 @@ def get_block_chain():
 def run_eval(stmt):
     "Simulator only: eval a python statement"
         
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     stmt = ' '.join(stmt)
 
@@ -372,7 +379,7 @@ def run_eval(stmt):
 def run_eval(stmt):
     "Simulator only: exec a python script"
         
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     stmt = ' '.join(stmt)
 
@@ -390,7 +397,7 @@ def run_eval(stmt):
 def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit=False):
     "Sign a short text message"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     if wrap:
         addr_fmt = AF_P2WPKH_P2SH
@@ -482,7 +489,7 @@ def wait_and_download(dev, req, fn):
 def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_mode=False, finalize=False, visualize=False, signed=False):
     "Approve a spending transaction by signing it on Coldcard"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     # Handle non-binary encodings, and incorrect files.
@@ -553,7 +560,7 @@ def start_backup(outdir, outfile, verbose=False):
 Downloads the AES-encrypted data backup and by default, saves into current directory using \
 a filename based on today's date.'''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     dev.check_mitm()
 
@@ -585,7 +592,7 @@ a filename based on today's date.'''
 def show_address(path, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     if wrap:
         addr_fmt = AF_P2WPKH_P2SH
@@ -639,7 +646,7 @@ def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
     match order of pubkeys in the script.
     '''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     addr_fmt = AF_P2SH
     if segwit:
@@ -682,7 +689,7 @@ def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
 def bip39_passphrase(passphrase, verbose=False):
     "Provide a BIP39 passphrase"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     dev.check_mitm()
 
@@ -725,7 +732,7 @@ Create a skeleton file which defines a multisig wallet.
 When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.
 '''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     xfp = dev.master_fingerprint
@@ -781,7 +788,7 @@ Upload policy file (or use existing policy) and start HSM mode on device. User m
 All PSBT's will be signed automatically based on that policy.
 
 '''
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     if policy:
@@ -812,7 +819,7 @@ Get current status of HSM feature.
 Is it running, what is the policy (summary only).
 '''
     
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     resp = dev.send_recv(CCProtocolPacker.hsm_status())
@@ -845,7 +852,7 @@ be shown on the Coldcard screen.
     username = username.encode('ascii')
     assert 1 <= len(username) <= MAX_USERNAME_LEN, "Username length wrong"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     if do_delete:
@@ -904,7 +911,7 @@ it's signing on the Coldcard in HSM mode.
 '''
 
     if not next_code:
-        dev = ColdcardDevice(sn=force_serial)
+        dev = get_device()
         dev.check_mitm()
 
         resp = dev.send_recv(CCProtocolPacker.hsm_status())
@@ -938,7 +945,7 @@ password, the PSBT file in question must be provided.
     from hashlib import pbkdf2_hmac, sha256
 
     dryrun = True
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     if psbt_file or password:
@@ -993,7 +1000,7 @@ password, the PSBT file in question must be provided.
 def get_storage_locker():
     "Get the value held in the Storage Locker (not Bitcoin related, reserved for HSM use)"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     ls = dev.send_recv(CCProtocolPacker.get_storage_locker(), timeout=None)
 

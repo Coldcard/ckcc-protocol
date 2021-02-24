@@ -46,6 +46,7 @@ Usage: ckcc [OPTIONS] COMMAND [ARGS]...
 Options:
   -s, --serial HEX  Operate on specific unit (default: first found)
   -x, --simulator   Connect to the simulator via Unix socket
+  -P, --plaintext   Disable USB link-layer encryption
   --help            Show this message and exit.
 
 Commands:

@@ -1,3 +1,4 @@
+# (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
 #
 # Constants and various "limits" shared between embedded and desktop USB protocol
 #

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 #
+# (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
+#
 # To use this, install with:
 #
 #   pip install --editable .

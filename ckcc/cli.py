@@ -205,7 +205,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
 
             magic = struct.unpack_from("<I", hdr)[0]
             #print("hdr @ 0x%x: %s" % (FW_HEADER_OFFSET, b2a_hex(hdr)))
-        except:
+        except Exception:
             magic = None
 
         if magic != FW_HEADER_MAGIC:
@@ -309,7 +309,7 @@ def get_pubkey(subpath):
 
     try:
         from pycoin.key.BIP32Node import BIP32Node
-    except:
+    except Exception:
         raise click.Abort("pycoin must be installed, not found.")
 
     dev = get_device()
@@ -410,7 +410,7 @@ def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit
     # standard very much still in flux, see: <https://github.com/bitcoin/bitcoin/issues/10542>
 
     # not enforcing policy here on msg contents, so we can define that on product
-    message = message.encode('ascii')
+    message = message.encode('ascii') if not isinstance(message, bytes) else message
 
     ok = dev.send_recv(CCProtocolPacker.sign_message(message, path, addr_fmt), timeout=None)
     assert ok == None

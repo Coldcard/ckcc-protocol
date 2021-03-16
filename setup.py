@@ -28,7 +28,7 @@ setup(
     name='ckcc-protocol',
     version=__version__,
     packages=[ 'ckcc' ],
-    python_requires='>3.5.0',
+    python_requires='>3.6.0',
     install_requires=requirements,
     extras_require={
         'cli': cli_requirements,
@@ -44,7 +44,6 @@ setup(
         ckcc=ckcc.cli:main
     ''',
     classifiers=[
-        'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
         'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: MacOS :: MacOS X',

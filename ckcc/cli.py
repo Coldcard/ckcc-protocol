@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 #
+# (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
+#
 # To use this, install with:
 #
 #   pip install --editable .
@@ -10,7 +12,7 @@
 # - see <https://github.com/trezor/cython-hidapi/blob/master/hid.pyx> for HID api 
 #
 #
-import hid, click, sys, os, pdb, struct, time, io, re
+import hid, click, sys, os, pdb, struct, time, io, re, json
 from pprint import pformat
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
@@ -20,15 +22,18 @@ from base64 import b64decode, b64encode
 
 from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
 from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
-from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN
-from ckcc.constants import (
-    AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
+from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN
+from ckcc.constants import USER_AUTH_HMAC, USER_AUTH_TOTP, USER_AUTH_HOTP, USER_AUTH_SHOW_QR
+from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH
+from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse
+from ckcc.utils import dfu_parse, calc_local_pincode
 
 global force_serial
 force_serial = None
+global force_plaintext
+force_plaintext = False
 
 # Cleanup display (supress traceback) for user-feedback exceptions
 _sys_excepthook = sys.excepthook
@@ -39,11 +44,15 @@ def my_hook(ty, val, tb):
         return _sys_excepthook(ty, val, tb)
 sys.excepthook=my_hook
 
+B2A = lambda x: b2a_hex(x).decode('ascii')
+
 def xfp2str(xfp):
     # Standardized way to show an xpub's fingerprint... it's a 4-byte string
     # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
-    return b2a_hex(struct.pack('>I', xfp)).decode('ascii').upper()
+    return b2a_hex(struct.pack('<I', xfp)).decode('ascii').upper()
 
+def get_device():
+    return ColdcardDevice(sn=force_serial, encrypt=not force_plaintext)
 
 # Options we want for all commands
 @click.group()
@@ -51,9 +60,12 @@ def xfp2str(xfp):
                     help="Operate on specific unit (default: first found)")
 @click.option('--simulator', '-x', default=False, is_flag=True,
                     help="Connect to the simulator via Unix socket")
-def main(serial, simulator):
-    global force_serial
+@click.option('--plaintext', '-P', default=False, is_flag=True,
+                    help="Disable USB link-layer encryption")
+def main(serial, simulator, plaintext):
+    global force_serial, force_plaintext
     force_serial = serial
+    force_plaintext = plaintext
 
     if simulator:
         force_serial = '/tmp/ckcc-simulator.sock'
@@ -120,7 +132,7 @@ def _list():
 @main.command()
 def logout():
     "Securely logout of device (will require replug to start over)"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     resp = dev.send_recv(CCProtocolPacker.logout())
     print("Device says: %r" % resp if resp else "Okay!")
@@ -128,7 +140,7 @@ def logout():
 @main.command()
 def reboot():
     "Reboot coldcard, force relogin and start over"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     resp = dev.send_recv(CCProtocolPacker.reboot())
     print("Device says: %r" % resp if resp else "Okay!")
@@ -137,7 +149,7 @@ def reboot():
 @click.option('--number', '-n', metavar='BAG_NUMBER', default=None)
 def bag_number(number):
     "Factory: set or read bag number -- single use only!"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     nn = b'' if not number else number.encode('ascii')
 
@@ -150,7 +162,7 @@ def bag_number(number):
             type=click.IntRange(0,255), help='If set, use this value on wire.')
 def usb_test(single):
     "Test USB connection (debug/dev)"
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     rng = []
     rng.extend(range(55, 66))       # buggy lengths are around 64 
@@ -171,7 +183,7 @@ def usb_test(single):
 
 
 def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, dev=None):
-    dev = dev or ColdcardDevice(sn=force_serial)
+    dev = dev or get_device()
 
     # learn size (portable way)
     offset = 0
@@ -195,7 +207,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
 
             magic = struct.unpack_from("<I", hdr)[0]
             #print("hdr @ 0x%x: %s" % (FW_HEADER_OFFSET, b2a_hex(hdr)))
-        except:
+        except Exception:
             magic = None
 
         if magic != FW_HEADER_MAGIC:
@@ -205,7 +217,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
         fd.seek(offset)
 
     click.echo("%d bytes (start @ %d) to send from %r" % (sz, fd.tell(), 
-            os.path.basename(fd.name) if hasattr(fd, 'name') else 'memory'))
+            os.path.basename(fd.name) if hasattr(fd, 'name') else 'memory'), err=1)
 
     left = sz
     chk = sha256()
@@ -223,8 +235,8 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
     result = dev.send_recv(CCProtocolPacker.sha256())
     assert len(result) == 32
     if result != expect:
-        click.echo("Wrong checksum:\nexpect: %s\n   got: %s" % (b2a_hex(expect).decode('ascii'),
-                                                              b2a_hex(result).decode('ascii')))
+        click.echo("Wrong checksum:\nexpect: %s\n   got: %s" 
+                    % (b2a_hex(expect).decode('ascii'), b2a_hex(result).decode('ascii')), err=1)
         sys.exit(1)
 
     if not do_upgrade:
@@ -242,7 +254,7 @@ def real_file_upload(fd, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=True, 
     assert expect == final_chk, "Checksum mismatch after all that?"
 
     if do_reboot:
-        click.echo("Upgrade started. Observe Coldcard screen for progress.")
+        click.echo("Upgrade started. Observe Coldcard screen for progress.", err=1)
         dev.send_recv(CCProtocolPacker.reboot())
 
 @main.command('upload')
@@ -255,7 +267,7 @@ def file_upload(filename, blksize, multisig=False):
     "Send file to Coldcard (PSBT transaction or firmware)"
 
     # NOTE: mostly for debug/dev usage.
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     file_len, sha = real_file_upload(filename, blksize, dev=dev)
 
@@ -279,7 +291,7 @@ BIP44_FIRST = "m/44'/0'/0'/0"
 def get_xpub(subpath):
     "Get the XPUB for this wallet (master level, or any derivation)"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     if len(subpath) == 1:
         if subpath[0] == 'bip44':
@@ -299,10 +311,10 @@ def get_pubkey(subpath):
 
     try:
         from pycoin.key.BIP32Node import BIP32Node
-    except:
+    except Exception:
         raise click.Abort("pycoin must be installed, not found.")
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     xpub = dev.send_recv(CCProtocolPacker.get_xpub(subpath), timeout=None)
 
@@ -315,32 +327,48 @@ def get_pubkey(subpath):
 def get_fingerprint(swab):
     "Get the fingerprint for this wallet (master level)"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     xfp = dev.master_fingerprint
     assert xfp
 
     if swab:
-        xfp = struct.unpack("<I", struct.pack(">I", xfp))[0]
-
-    click.echo(xfp2str(xfp))
+        # this is how we used to show XFP values: LE32 hex with 0x in front.
+        click.echo('0x%08x' % xfp)
+    else:
+        # network order = BE32 = top 32-bits of hash160(pubkey) = 4 bytes in bip32 serialization
+        click.echo(xfp2str(xfp))
 
 @main.command('version')
 def get_version():
     "Get the version of the firmware installed"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     v = dev.send_recv(CCProtocolPacker.version())
 
     click.echo(v)
+
+@main.command('chain')
+def get_block_chain():
+    '''Get which blockchain (Bitcoin/Testnet) is configured.
+
+    BTC=>Bitcoin  or  XTN=>Bitcoin Testnet
+    '''
+
+    dev = get_device()
+
+    code = dev.send_recv(CCProtocolPacker.block_chain())
+
+    click.echo(code)
+
 
 @main.command('eval')
 @click.argument('stmt', nargs=-1)
 def run_eval(stmt):
     "Simulator only: eval a python statement"
         
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     stmt = ' '.join(stmt)
 
@@ -353,7 +381,7 @@ def run_eval(stmt):
 def run_eval(stmt):
     "Simulator only: exec a python script"
         
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     stmt = ' '.join(stmt)
 
@@ -371,7 +399,7 @@ def run_eval(stmt):
 def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit=False):
     "Sign a short text message"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     if wrap:
         addr_fmt = AF_P2WPKH_P2SH
@@ -384,7 +412,7 @@ def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit
     # standard very much still in flux, see: <https://github.com/bitcoin/bitcoin/issues/10542>
 
     # not enforcing policy here on msg contents, so we can define that on product
-    message = message.encode('ascii')
+    message = message.encode('ascii') if not isinstance(message, bytes) else message
 
     ok = dev.send_recv(CCProtocolPacker.sign_message(message, path, addr_fmt), timeout=None)
     assert ok == None
@@ -445,25 +473,25 @@ def wait_and_download(dev, req, fn):
 
     # download the result.
 
-    click.echo("Ok! Downloading result (%d bytes)" % result_len)
+    click.echo("Ok! Downloading result (%d bytes)" % result_len, err=1)
     result = dev.download_file(result_len, result_sha, file_number=fn)
 
     return result, result_sha
     
 @main.command('sign')
 @click.argument('psbt_in', type=click.File('rb'))
-@click.argument('psbt_out', type=click.File('wb'))
+@click.argument('psbt_out', type=click.File('wb'), required=False)
 @click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
+@click.option('--visualize', '-z', is_flag=True, help='Show text of Coldcard\'s interpretation of the transaction (does not create transaction, no interaction needed)')
+@click.option('--signed', '-s', is_flag=True, help='Include a signature over visualization text')
 @click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
 @click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=False, finalize=False):
+def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_mode=False, finalize=False, visualize=False, signed=False):
     "Approve a spending transaction by signing it on Coldcard"
 
-    # NOTE: not enforcing policy here on msg contents, so we can define that on product
-
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     # Handle non-binary encodings, and incorrect files.
@@ -483,8 +511,16 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=
     # upload the transaction
     txn_len, sha = real_file_upload(psbt_in, dev=dev)
 
+    flags = 0x0
+    if visualize or signed:
+        flags |= STXN_VISUALIZE
+        if signed:
+            flags |= STXN_SIGNED
+    elif finalize:
+        flags |= STXN_FINALIZE
+
     # start the signing process
-    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, finalize=finalize), timeout=None)
+    ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, flags=flags), timeout=None)
     assert ok == None
 
     # errors will raise here, no need for error display
@@ -495,13 +531,22 @@ def sign_transaction(psbt_in, psbt_out, verbose=False, b64_mode=False, hex_mode=
     # an exception would have occured. Most people will want hex here, but
     # resisting the urge to force it.
 
-    # save it
-    if hex_mode:
-        result = b2a_hex(result)
-    elif b64_mode:
-        result = b64encode(result)
+    if visualize:
+        if psbt_out:
+            psbt_out.write(result)
+        else:
+            click.echo(result, nl=False)
+    else:
+        # save it
+        if hex_mode:
+            result = b2a_hex(result)
+        elif b64_mode or (not psbt_out and os.isatty(0)):
+            result = b64encode(result)
 
-    psbt_out.write(result)
+        if psbt_out:
+            psbt_out.write(result)
+        else:
+            click.echo(result)
 
 @main.command('backup')
 @click.option('--outdir', '-d', 
@@ -517,7 +562,7 @@ def start_backup(outdir, outfile, verbose=False):
 Downloads the AES-encrypted data backup and by default, saves into current directory using \
 a filename based on today's date.'''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     dev.check_mitm()
 
@@ -541,14 +586,15 @@ a filename based on today's date.'''
     click.echo("Wrote %d bytes into: %s\nSHA256: %s" % (len(result), fn, str(b2a_hex(chk), 'ascii')))
         
 @main.command('addr')
-@click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show')
+@click.argument('path', default=BIP44_FIRST, metavar='[m/1/2/3]', required=False)
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
+@click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show (or first arg)')
 def show_address(path, quiet=False, segwit=False, wrap=False):
     "Show the human version of an address"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     if wrap:
         addr_fmt = AF_P2WPKH_P2SH
@@ -568,7 +614,7 @@ def str_to_int_path(xfp, path):
     # convert text  m/34'/33/44 into BIP174 binary compat format
     # - include hex for fingerprint (m) as first arg
 
-    rv = [int(xfp, 16)]
+    rv = [struct.unpack('<I', a2b_hex(xfp))[0]]
     for i in path.split('/'):
         if i == 'm': continue
         if not i: continue      # trailing or duplicated slashes
@@ -588,22 +634,21 @@ def str_to_int_path(xfp, path):
 @main.command('p2sh')
 @click.argument('script', type=str, nargs=1, required=True)
 @click.argument('fingerprints', type=str, nargs=-1, required=True)
-@click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: implied by script)', default=0)
-@click.option('--path_prefix', '-p', default="m/45'/", help='Common path derivation for all key to share (BIP45)')
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, segwit=False, wrap=False):
-    '''Show a multisig payment address on-screen
+def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
+    '''Show a multisig payment address on-screen.
 
-    Append subkey path to fingerprint value (4369050F/1/0/0 for example) or omit for 0/0/0
+    Needs a redeem script and list of fingerprint/path (4369050F/1/0/0 for example).
 
-    This is provided as a demo or debug feature: you'll need the full redeem script (hex),
-    and the fingerprints and paths used to generate each public key inside that.
-    Order of fingerprint/path must match order of pubkeys in script.
+    This is provided as a demo or debug feature. You'll need need some way to
+    generate the full redeem script (hex), and the fingerprints and paths used to
+    generate each public key inside that. The order of fingerprint/paths must
+    match order of pubkeys in the script.
     '''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     addr_fmt = AF_P2SH
     if segwit:
@@ -614,26 +659,18 @@ def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, 
     script = a2b_hex(script)
     N = len(fingerprints)
 
-    if N <= 16:
-        if not min_signers:
-            assert N <= 15
-            min_signers = script[0] - 80
-        else:
-            assert min_signers == script[0], "M conficts with script"
+    assert 1 <= N <= 15, "bad N"
 
-        assert script[-1] == 0xAE, "expect script to end with OP_CHECKMULTISIG"
-        assert script[-2] == 80+N, "second last byte should encode N"
+    min_signers = script[0] - 80
+    assert 1 <= min_signers <= N, "bad M"
+
+    assert script[-1] == 0xAE, "expect script to end with OP_CHECKMULTISIG"
+    assert script[-2] == 80+N, "second last byte should encode N"
 
     xfp_paths = []
     for idx, xfp in enumerate(fingerprints):
-        if '/' not in xfp:
-            # this isn't BIP45 compliant but we don't know the cosigner's index
-            # values, since they would have been suffled when the redeem script is sorted
-            p = '0/0/0'
-        else:
-            # better if all paths provided
-            xfp, p = xfp.split('/', 1)
-            p = path_prefix + p
+        assert '/' in xfp, 'Needs a XFP/path: ' + xfp
+        xfp, p = xfp.split('/', 1)
 
         xfp_paths.append(str_to_int_path(xfp, p))
 
@@ -654,7 +691,7 @@ def show_address(path_prefix, script, fingerprints, min_signers=0, quiet=False, 
 def bip39_passphrase(passphrase, verbose=False):
     "Provide a BIP39 passphrase"
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
 
     dev.check_mitm()
 
@@ -690,14 +727,14 @@ def bip39_passphrase(passphrase, verbose=False):
 @click.option('--verbose', '-v', is_flag=True, help='Show file uploaded')
 @click.option('--path', '-p', default="m/45'", help="Derivation for key (default: BIP45 = m/45')")
 @click.option('--add', '-a', 'just_add', is_flag=True, help='Just show line required to add this Coldcard')
-def enroll_xpub(name, min_signers, path,  num_signers, dry_run=False, output_file=None, verbose=False, just_add=False):
+def enroll_xpub(name, min_signers, path,  num_signers, output_file=None, verbose=False, just_add=False):
     '''
 Create a skeleton file which defines a multisig wallet.
 
 When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.
 '''
 
-    dev = ColdcardDevice(sn=force_serial)
+    dev = get_device()
     dev.check_mitm()
 
     xfp = dev.master_fingerprint
@@ -741,5 +778,234 @@ When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.
         output_file.write(config)
         output_file.close()
         click.echo(f"Wrote to: {output_file.name}")
+
+@main.command('hsm-start')
+@click.argument('policy', type=click.Path(exists=True,dir_okay=False), metavar="policy.json", required=False)
+@click.option('--dry-run', '-n', is_flag=True, help="Just validate file, don't upload")
+def hsm_setup(policy=None, dry_run=False):
+    '''
+Enable Hardware Security Module (HSM) mode.
+
+Upload policy file (or use existing policy) and start HSM mode on device. User must approve startup.
+All PSBT's will be signed automatically based on that policy.
+
+'''
+    dev = get_device()
+    dev.check_mitm()
+
+    if policy:
+        if dry_run:
+            # check it looks reasonable, but jsut a JSON check
+            raw = open(policy, 'rt').read()
+            j = json.loads(raw)
+
+            click.echo("Policy ok")
+            sys.exit(0)
+
+        file_len, sha = real_file_upload(open(policy, 'rb'), dev=dev)
+
+        dev.send_recv(CCProtocolPacker.hsm_start(file_len, sha))
+    else:
+        if dry_run:
+            raise click.UsageError("Dry run not useful without a policy file to check.")
+
+        dev.send_recv(CCProtocolPacker.hsm_start())
+
+    click.echo("Approve HSM policy on Coldcard screen.")
+
+@main.command('hsm')
+def hsm_status():
+    '''
+Get current status of HSM feature.
+
+Is it running, what is the policy (summary only).
+'''
+    
+    dev = get_device()
+    dev.check_mitm()
+
+    resp = dev.send_recv(CCProtocolPacker.hsm_status())
+
+    o = json.loads(resp)
+
+    click.echo(pformat(o))
+
+@main.command('user')
+@click.argument('username', type=str, metavar="USERNAME", required=True)
+@click.option('--totp', '-t', 'totp_create', is_flag=True, help='Do TOTP and let Coldcard pick secret (default)')
+@click.option('--pass', 'pick_pass', is_flag=True, help='Use a password picked by Coldcard')
+@click.option('--ask-pass', '-a', is_flag=True, help='Define password here (interactive)')
+@click.option('--totp-secret', '-s', help='BASE32 encoded secret for TOTP 2FA method (not great)')
+@click.option('--text-secret', '-p', help='Provide password on command line (not great)')
+@click.option('--delete', '-d', 'do_delete', is_flag=True, help='Remove a user by name')
+@click.option('--show-qr', '-q', is_flag=True, help='Show enroll QR contents (locally)')
+@click.option('--hotp', is_flag=True, help='Use HOTP instead of TOTP (dev only)')
+def new_user(username, totp_create=False, totp_secret=None, text_secret=None, ask_pass=False,
+                do_delete=False, debug=False, show_qr=False, hotp=False, pick_pass=False):
+    '''
+Create a new user on the Coldcard for HSM policy (also delete).
+
+You can input a password (interactively), or one can be picked
+by the Coldcard. When possible the QR to enrol your 2FA app will
+be shown on the Coldcard screen.
+'''
+    from base64 import b32encode, b32decode
+
+    username = username.encode('ascii')
+    assert 1 <= len(username) <= MAX_USERNAME_LEN, "Username length wrong"
+
+    dev = get_device()
+    dev.check_mitm()
+
+    if do_delete:
+        dev.send_recv(CCProtocolPacker.delete_user(username))
+        click.echo('Deleted, if it was there')
+        return
+
+    if ask_pass:
+        assert not text_secret, "dont give and ask for password"
+        text_secret = click.prompt('Password (hidden)', hide_input=True, confirmation_prompt=True)
+        mode = USER_AUTH_HMAC
+
+    if totp_secret:
+        secret = b32decode(totp_secret, casefold=True)
+        assert len(secret) in {10, 20}
+        mode = USER_AUTH_TOTP
+    elif hotp:
+        mode = USER_AUTH_HOTP
+        secret = b''
+    elif pick_pass or text_secret:
+        mode = USER_AUTH_HMAC
+    else:
+        # default is TOTP
+        secret = b''
+        mode = USER_AUTH_TOTP
+    
+    if mode == USER_AUTH_HMAC:
+        # default is text passwords
+        secret = dev.hash_password(text_secret.encode('utf8')) if text_secret else b''
+        assert not show_qr, 'QR not appropriate for text passwords'
+
+    if not secret and not show_qr:
+        # ask the Coldcard to show the QR (for password or TOTP shared secret)
+        mode |= USER_AUTH_SHOW_QR
+
+    new_secret = dev.send_recv(CCProtocolPacker.create_user(username, mode, secret))
+
+    if show_qr and new_secret:
+        # format the URL thing ... needs a spec
+        username = username.decode('ascii')
+        secret = new_secret or b32encode(secret).decode('ascii')
+        mode = 'hotp' if mode == USER_AUTH_HOTP else 'totp'
+        click.echo(f'otpauth://{mode}/{username}?secret={secret}&issuer=Coldcard%20{dev.serial}')
+    elif not text_secret and new_secret:
+        click.echo(f'New password is: {new_secret}')
+    else:
+        click.echo('Done')
+
+@main.command('local-conf')
+@click.argument('psbt-file', type=click.File('rb'), required=True, metavar="Binary PSBT")
+@click.option('--next', '-n', 'next_code', type=str, help='next_local_code from Coldcard (default: ask it)')
+def user_auth(psbt_file, next_code=None):
+    '''
+Generate the 6-digit code needed for a specific PSBT file to authorize
+it's signing on the Coldcard in HSM mode.
+'''
+
+    if not next_code:
+        dev = get_device()
+        dev.check_mitm()
+
+        resp = dev.send_recv(CCProtocolPacker.hsm_status())
+        o = json.loads(resp)
+
+        assert o['active'], "Coldcard not in HSM mode"
+
+        next_code = o['next_local_code']
+
+    psbt_hash = sha256(psbt_file.read()).digest()
+
+    rv = calc_local_pincode(psbt_hash, next_code)
+
+    print("Local authorization code is:\n\n\t%s\n" % rv)
+
+@main.command('auth')
+@click.argument('username', type=str, metavar="USERNAME", required=True)
+@click.argument('token', type=str, metavar="[TOTP]", required=False)
+@click.option('--psbt-file', '-f', type=click.File('rb'), required=False)
+@click.option('--password', '-p', is_flag=True, help="Prompt for password")
+@click.option('--debug', '-d', is_flag=True, help='Show values used')
+def user_auth(username, token=None, password=None, prompt=None, totp=None, psbt_file=None, debug=False):
+    '''
+Indicate specific user is present (for HSM).
+
+Username and 2FA (TOTP, 6-digits) value or password are required. To use
+password, the PSBT file in question must be provided.
+'''
+    import time
+    from hmac import HMAC
+    from hashlib import pbkdf2_hmac, sha256
+
+    dryrun = True
+    dev = get_device()
+    dev.check_mitm()
+
+    if psbt_file or password:
+        if psbt_file:
+            psbt_hash = sha256(psbt_file.read()).digest()
+            dryrun = False
+        else:
+            psbt_hash = bytes(32)
+
+        pw = token or click.prompt('Password (hidden)', hide_input=True)
+        secret = dev.hash_password(pw.encode('utf8'))
+
+        token = HMAC(secret, msg=psbt_hash, digestmod=sha256).digest()
+
+        if debug:
+            click.echo("  secret = %s" % B2A(secret))
+            click.echo("    salt = %s" % B2A(salt))
+
+        totp_time = 0
+    else:
+        if not token:
+            token = click.prompt('2FA Token (6 digits)', hide_input=False)
+
+        if len(token) != 6 or not token.isdigit():
+            raise click.UsageError("2FA Token must be 6 decimal digits")
+
+        token = token.encode('ascii')
+
+        now = int(time.time())
+        if now % 30 < 5:
+            click.echo("NOTE: TOTP was on edge of expiry limit! Might not work.")
+        totp_time =  now // 30
+
+    #raise click.UsageError("Need PSBT file as part of HMAC for password")
+
+    assert token and len(token) in {6, 32}
+    username = username.encode('ascii')
+
+    if debug:
+        click.echo(" username = %s" % username.decode('ascii'))
+        click.echo("    token = %s" % (B2A(token) if len(token) > 6 else token.decode('ascii')))
+        click.echo("totp_time = %d" % totp_time)
+
+    resp = dev.send_recv(CCProtocolPacker.user_auth(username, token, totp_time))
+
+    if not resp:
+        click.echo("Correct or queued")
+    else:
+        click.echo(f'Problem: {resp}')
+
+@main.command('get-locker')
+def get_storage_locker():
+    "Get the value held in the Storage Locker (not Bitcoin related, reserved for HSM use)"
+
+    dev = get_device()
+
+    ls = dev.send_recv(CCProtocolPacker.get_storage_locker(), timeout=None)
+
+    click.echo(ls)
 
 # EOF

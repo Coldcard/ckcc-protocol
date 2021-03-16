@@ -29,8 +29,10 @@ To build to release for Pypi:
 - test `python -m ckcc` works
 - final upload: `twine upload dist/*`
 
-## Reminders
+## How to Release New Version
 
 - update `ckcc/__init__.py` with new `__version__` string
+- `python3 setup.py sdist bdist_wheel`
 - maybe delete old version from `./dist`
-
+- tag source code with new version (at this point)
+- `twine upload dist/*` when ready.

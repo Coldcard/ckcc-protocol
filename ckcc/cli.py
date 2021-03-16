@@ -935,7 +935,8 @@ it's signing on the Coldcard in HSM mode.
 @click.option('--psbt-file', '-f', type=click.File('rb'), required=False)
 @click.option('--password', '-p', is_flag=True, help="Prompt for password")
 @click.option('--debug', '-d', is_flag=True, help='Show values used')
-def user_auth(username, token=None, password=None, prompt=None, totp=None, psbt_file=None, debug=False):
+@click.option('--version3', '-3', is_flag=True, help='Support obsolete 3.x.x firmware')
+def user_auth(username, token=None, password=None, prompt=None, totp=None, psbt_file=None, debug=False, version3=False):
     '''
 Indicate specific user is present (for HSM).
 
@@ -958,7 +959,7 @@ password, the PSBT file in question must be provided.
             psbt_hash = bytes(32)
 
         pw = token or click.prompt('Password (hidden)', hide_input=True)
-        secret = dev.hash_password(pw.encode('utf8'))
+        secret = dev.hash_password(pw.encode('utf8'), v3=version3)
 
         token = HMAC(secret, msg=psbt_hash, digestmod=sha256).digest()
 

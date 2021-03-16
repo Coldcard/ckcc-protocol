@@ -329,14 +329,15 @@ class ColdcardDevice:
 
         return data
 
-    def hash_password(self, text_password):
+    def hash_password(self, text_password, v3=False):
         # Turn text password into a key for use in HSM auth protocol
+        # - changed from pbkdf2_hmac_sha256 to pbkdf2_hmac_sha512 in version 4 of CC firmware
         from hashlib import pbkdf2_hmac, sha256
         from .constants import PBKDF2_ITER_COUNT
 
         salt = sha256(b'pepper' + self.serial.encode('ascii')).digest()
 
-        return pbkdf2_hmac('sha256', text_password, salt, PBKDF2_ITER_COUNT)
+        return pbkdf2_hmac('sha256' if v3 else 'sha512', text_password, salt, PBKDF2_ITER_COUNT)[:32]
 
 
 class UnixSimulatorPipe:
@@ -394,7 +395,7 @@ class UnixSimulatorPipe:
             pass
 
     def get_serial_number_string(self):
-        return 'simulator'
+        return 'F1'*6
 
 
 # EOF

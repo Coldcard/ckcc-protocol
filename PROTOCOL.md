@@ -64,7 +64,7 @@ which returns a signature over the session key using the Coldcard's
 main secret key used for funds.
 
 At this time we are not requiring encryption for all commands, but
-that may change in the future. Since we do that, it's best to enable
+that may change in the future. Since we may do that, it's best to enable
 encryption immediately and use it consistently. Part of the response
 to "start encryption" command is the extended public key (XPUB) and
 master fingerprint that you will need for most purposes anyway.

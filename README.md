@@ -62,13 +62,13 @@ Commands:
   hsm         Get current status of HSM feature.
   hsm-start   Enable Hardware Security Module (HSM) mode.
   list        List all attached Coldcard devices
-  local-conf  Generate the 6-digit code needed for a specific PSBT file to...
+  local-conf  Generate the 6-digit code needed for a specific PSBT file...
   logout      Securely logout of device (will require replug to start over)
   msg         Sign a short text message
   multisig    Create a skeleton file which defines a multisig wallet.
   p2sh        Show a multisig payment address on-screen.
   pass        Provide a BIP39 passphrase
-  pubkey      Get the public key for a derivation path Dump 33-byte...
+  pubkey      Get the public key for a derivation path
   reboot      Reboot coldcard, force relogin and start over
   sign        Approve a spending transaction by signing it on Coldcard
   test        Test USB connection (debug/dev)
@@ -90,12 +90,12 @@ Usage: ckcc msg [OPTIONS] MESSAGE
   Sign a short text message
 
 Options:
-  -p, --path TEXT  Derivation for key to use
-  -v, --verbose    Include fancy ascii armour
-  -j, --just-sig   Just the signature itself, nothing more
-  -s, --segwit     Address in segwit native (p2wpkh, bech32)
-  -w, --wrap       Address in segwit wrapped in P2SH (p2wpkh)
-  --help           Show this message and exit.
+  -p, --path DERIVATION  Derivation for key to use [default: m/44'/0'/0'/0/0]
+  -v, --verbose          Include fancy ascii armour
+  -j, --just-sig         Just the signature itself, nothing more
+  -s, --segwit           Address in segwit native (p2wpkh, bech32)
+  -w, --wrap             Address in segwit wrapped in P2SH (p2wpkh)
+  --help                 Show this message and exit.
 
 % ckcc msg "Hello Coldcard" -p m/34/23/33
 Waiting for OK on the Coldcard...

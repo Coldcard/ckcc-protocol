@@ -35,6 +35,9 @@ force_serial = None
 global force_plaintext
 force_plaintext = False
 
+# First account, not change, first index for Bitcoin mainnet in BIP44 path
+BIP44_FIRST = "m/44'/0'/0'/0/0"
+
 # Cleanup display (supress traceback) for user-feedback exceptions
 _sys_excepthook = sys.excepthook
 def my_hook(ty, val, tb):
@@ -283,9 +286,6 @@ def firmware_upgrade(filename, stop_early):
 
     real_file_upload(filename, do_upgrade=True, do_reboot=(not stop_early))
 
-# First account, not change, first index for Bitcoin mainnet in BIP44 path
-BIP44_FIRST = "m/44'/0'/0'/0"
-
 @main.command('xpub')
 @click.argument('subpath', default='m')
 def get_xpub(subpath):
@@ -391,7 +391,8 @@ def run_eval(stmt):
     
 @main.command('msg')
 @click.argument('message')
-@click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to use')
+@click.option('--path', '-p', default=BIP44_FIRST, 
+        help=f'Derivation for key to use [default: {BIP44_FIRST}]', metavar="DERIVATION")
 @click.option('--verbose', '-v', is_flag=True, help='Include fancy ascii armour')
 @click.option('--just-sig', '-j', is_flag=True, help='Just the signature itself, nothing more')
 @click.option('--segwit', '-s', is_flag=True, help='Address in segwit native (p2wpkh, bech32)')

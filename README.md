@@ -2,7 +2,7 @@
 
 Coldcard is a Cheap, Ultra-secure & Opensource Hardware Wallet for #Bitcoin.
 
-Get yours at [ColdcardWallet.com](http://coldcardwallet.com)
+Get yours at [ColdcardWallet.com](http://coldcard.com)
 
 This is the python code and command-line utilities you need to communicate with it over USB.
 

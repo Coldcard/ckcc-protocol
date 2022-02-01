@@ -1010,4 +1010,105 @@ def get_storage_locker():
 
     click.echo(ls)
 
+
+@main.command('coldcardify')
+@click.argument('file', type=click.File("r+"), required=True)
+@click.option('--outfile', '-o', type=click.File('w'), help="output file path where adjusted wallet file is written")
+@click.option('--no-op', default=False, is_flag=True, help="do not write files instead pretty print to console")
+def electrum_coldcardify(file, outfile, no_op):
+    """
+    Coldcardify electrum wallet file.
+
+    Adjusts standard hardware electrum wallet file to work with Coldcard. Under the hood this command changes
+    values in keystore dict in electrum wallet file. 'hw_type' is changed to coldcard. 'soft_device_id' is set to null.
+    'ckcc_xpub' is added (if coldcard is connected). And 'label' is built using 'Coldcard' + master fingerprint.
+
+    Your Coldcard does not need to be connected, but it is better to have it connected because it can be checked whether
+    Coldcard and wallet file describe the same wallet.
+
+    If no '--outfile/-o' is specified, 'file' argument will be overwritten. In that case, temporary file
+    will be created in standard temp dir. Please make sure electrum is not running when coldcardifying wallet
+    file in place.
+
+    Rationale:
+      Users may want to switch their hardware wallet vendor. Yet they want to keep all of their electrum data
+      (labels, contacts, payment requests...). Another possibility is when someone's hww gets lost or broken,
+      and they still have a seed, this seed can be loaded to new Coldcard (check https://coldcard.com/docs/import)
+      and their previous electrum wallet can be coldcardified.
+
+    * Does not work with encrypted wallet files - please decrypt first via electrum interface.
+    """
+    import pprint
+    import tempfile
+
+    KEYSTORE = "keystore"
+
+    file_name = os.path.basename(file.name)
+
+    if outfile is None and no_op is False:
+        # only create temp file if we're overwriting the existing original file
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, prefix=file_name + "_") as temp_f:
+            temp_f.write(file.read())
+            click.echo("Backed up original wallet file to {}".format(temp_f.name))
+
+    # go back to beginning of the wallet file
+    file.seek(0)
+
+    try:
+        # this may be changed to context manager once https://github.com/Coldcard/ckcc-protocol/pull/14 gets merged
+        dev = get_device()
+    except KeyError:
+        dev = None
+
+    try:
+        contents = json.loads(file.read())
+    except Exception as e:
+        click.echo("Failed to load wallet file: {}".format(e))
+        sys.exit(1)
+
+    # for now only standard wallet
+    assert contents["wallet_type"] == "standard", "Not a standard wallet"
+    assert contents[KEYSTORE]["type"] == "hardware", "Not a hardware wallet type"
+
+    # below can be done even without coldcard connected
+    #
+    # 1. change hw type to coldcard
+    contents[KEYSTORE]["hw_type"] = "coldcard"
+    # 2. soft device id should be nullified
+    contents[KEYSTORE]["soft_device_id"] = None
+    # 3. remove cfg key if exists (ledger specific)
+    if "cfg" in contents[KEYSTORE]:
+        del contents[KEYSTORE]["cfg"]
+    # 4. label ? we can do something about it - at least remove the label that is no longer in use
+    contents[KEYSTORE]["label"] = "Coldcard {}".format(contents[KEYSTORE]["root_fingerprint"])
+
+    # for next steps we need coldcard connected (unnecessary)
+    if dev:
+        # 4. label Coldcard + fingerprint
+        xfp = dev.master_fingerprint
+        xfp = xfp2str(xfp).lower()  # if any letters - lower them
+        fingerprint_missmatch_msg = "Fingerprint missmatch! Is this a correct coldcard/wallet file?"
+        assert xfp == contents[KEYSTORE]["root_fingerprint"], fingerprint_missmatch_msg
+        label = "Coldcard {}".format(xfp)
+        contents[KEYSTORE]["label"] = label
+        # 5. ckcc xpub (master xpub)
+        master_ext_pubkey = dev.send_recv(CCProtocolPacker.get_xpub("m"), timeout=None)
+        contents[KEYSTORE]["ckcc_xpub"] = master_ext_pubkey
+
+    if no_op:
+        pprint.pprint(contents)
+    else:
+        content_str = json.dumps(contents, indent=4)
+        if outfile:
+            outfile.write(content_str)
+            click.echo("New wallet file created: {}".format(outfile.name))
+        else:
+            file.seek(0)
+            file.write(content_str)
+            file.truncate()
+            click.echo("{} coldcardified".format(file.name))
+
+    if dev:
+        dev.close()
+
 # EOF

@@ -19,6 +19,10 @@ cli_requirements = [
     'click>=6.7',
 ]
 
+tests_require = [
+    'pytest'
+]
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -30,6 +34,7 @@ setup(
     packages=[ 'ckcc' ],
     python_requires='>3.6.0',
     install_requires=requirements,
+    tests_require=tests_require,
     extras_require={
         'cli': cli_requirements,
     },

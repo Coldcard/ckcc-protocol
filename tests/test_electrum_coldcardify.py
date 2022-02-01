@@ -25,7 +25,7 @@ def assert_keystore(keystore):
 
 def test_encrypted():
     runner = CliRunner()
-    result = runner.invoke(electrum_coldcardify, [encrypted_path, "--no-op"])
+    result = runner.invoke(electrum_coldcardify, [encrypted_path, "--dry-run"])
     assert result.exit_code == 1
     assert "Failed to load wallet file" in result.output
 
@@ -33,7 +33,7 @@ def test_encrypted():
 def test_no_op():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
-        result = runner.invoke(electrum_coldcardify, [pth, "--no-op"])
+        result = runner.invoke(electrum_coldcardify, [pth, "--dry-run"])
         assert result.exit_code == 0
         loaded = eval(result.output)
         assert isinstance(loaded, dict)

@@ -1014,8 +1014,8 @@ def get_storage_locker():
 @main.command('coldcardify')
 @click.argument('file', type=click.File("r+"), required=True)
 @click.option('--outfile', '-o', type=click.File('w'), help="output file path where adjusted wallet file is written")
-@click.option('--no-op', default=False, is_flag=True, help="do not write files instead pretty print to console")
-def electrum_coldcardify(file, outfile, no_op):
+@click.option('--dry-run', '-n', default=False, is_flag=True, help="do not write files instead pretty print to console")
+def electrum_coldcardify(file, outfile, dry_run):
     """
     Coldcardify electrum wallet file.
 
@@ -1045,7 +1045,7 @@ def electrum_coldcardify(file, outfile, no_op):
 
     file_name = os.path.basename(file.name)
 
-    if outfile is None and no_op is False:
+    if outfile is None and dry_run is False:
         # only create temp file if we're overwriting the existing original file
         with tempfile.NamedTemporaryFile(mode="w", delete=False, prefix=file_name + "_") as temp_f:
             temp_f.write(file.read())
@@ -1095,7 +1095,7 @@ def electrum_coldcardify(file, outfile, no_op):
         master_ext_pubkey = dev.send_recv(CCProtocolPacker.get_xpub("m"), timeout=None)
         contents[KEYSTORE]["ckcc_xpub"] = master_ext_pubkey
 
-    if no_op:
+    if dry_run:
         pprint.pprint(contents)
     else:
         content_str = json.dumps(contents, indent=4)

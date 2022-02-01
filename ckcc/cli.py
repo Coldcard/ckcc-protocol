@@ -28,7 +28,9 @@ from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
+from ckcc.electrum import cc_adjust_hww_keystore
+
 
 global force_serial
 force_serial = None
@@ -47,12 +49,6 @@ def my_hook(ty, val, tb):
         return _sys_excepthook(ty, val, tb)
 sys.excepthook=my_hook
 
-B2A = lambda x: b2a_hex(x).decode('ascii')
-
-def xfp2str(xfp):
-    # Standardized way to show an xpub's fingerprint... it's a 4-byte string
-    # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
-    return b2a_hex(struct.pack('<I', xfp)).decode('ascii').upper()
 
 def get_device():
     return ColdcardDevice(sn=force_serial, encrypt=not force_plaintext)
@@ -1012,8 +1008,10 @@ def get_storage_locker():
 
 
 @main.command('coldcardify')
-@click.argument('file', type=click.File("r+"), required=True)
-@click.option('--outfile', '-o', type=click.File('w'), help="output file path where adjusted wallet file is written")
+@click.argument('file', type=click.Path(exists=True), required=True)
+@click.option('--outfile', '-o', type=click.Path(),
+              help="output file path where adjusted wallet file is written. "
+                   "If this is not specified output is written to <original_file>_cc")
 @click.option('--dry-run', '-n', default=False, is_flag=True, help="do not write files instead pretty print to console")
 def electrum_coldcardify(file, outfile, dry_run):
     """
@@ -1026,9 +1024,7 @@ def electrum_coldcardify(file, outfile, dry_run):
     Your Coldcard does not need to be connected, but it is better to have it connected because it can be checked whether
     Coldcard and wallet file describe the same wallet.
 
-    If no '--outfile/-o' is specified, 'file' argument will be overwritten. In that case, temporary file
-    will be created in standard temp dir. Please make sure electrum is not running when coldcardifying wallet
-    file in place.
+    If no '--outfile/-o' is specified, new wallet file will be created in same location with '_cc' suffix.
 
     Rationale:
       Users may want to switch their hardware wallet vendor. Yet they want to keep all of their electrum data
@@ -1038,22 +1034,9 @@ def electrum_coldcardify(file, outfile, dry_run):
 
     * Does not work with encrypted wallet files - please decrypt first via electrum interface.
     """
-    import pprint
-    import tempfile
-
-    KEYSTORE = "keystore"
-
-    file_name = os.path.basename(file.name)
-
-    if outfile is None and dry_run is False:
-        # only create temp file if we're overwriting the existing original file
-        with tempfile.NamedTemporaryFile(mode="w", delete=False, prefix=file_name + "_") as temp_f:
-            temp_f.write(file.read())
-            click.echo("Backed up original wallet file to {}".format(temp_f.name))
-
-    # go back to beginning of the wallet file
-    file.seek(0)
-
+    if file == outfile:
+        click.echo("'FILE' and '--outfile' cannot be the same")
+        sys.exit(1)
     try:
         # this may be changed to context manager once https://github.com/Coldcard/ckcc-protocol/pull/14 gets merged
         dev = get_device()
@@ -1061,52 +1044,30 @@ def electrum_coldcardify(file, outfile, dry_run):
         dev = None
 
     try:
-        contents = json.loads(file.read())
+        # open file only for reading and close it immediately after it is loaded into memory
+        with open(file, "r") as f:
+            contents = json.loads(f.read())
     except Exception as e:
         click.echo("Failed to load wallet file: {}".format(e))
         sys.exit(1)
 
     # for now only standard wallet
     assert contents["wallet_type"] == "standard", "Not a standard wallet"
-    assert contents[KEYSTORE]["type"] == "hardware", "Not a hardware wallet type"
+    # below line adjust keystore dict in contents dict (in place)
+    cc_adjust_hww_keystore(contents["keystore"], dev)
 
-    # below can be done even without coldcard connected
-    #
-    # 1. change hw type to coldcard
-    contents[KEYSTORE]["hw_type"] = "coldcard"
-    # 2. soft device id should be nullified
-    contents[KEYSTORE]["soft_device_id"] = None
-    # 3. remove cfg key if exists (ledger specific)
-    if "cfg" in contents[KEYSTORE]:
-        del contents[KEYSTORE]["cfg"]
-    # 4. label ? we can do something about it - at least remove the label that is no longer in use
-    contents[KEYSTORE]["label"] = "Coldcard {}".format(contents[KEYSTORE]["root_fingerprint"])
-
-    # for next steps we need coldcard connected (unnecessary)
-    if dev:
-        # 4. label Coldcard + fingerprint
-        xfp = dev.master_fingerprint
-        xfp = xfp2str(xfp).lower()  # if any letters - lower them
-        fingerprint_missmatch_msg = "Fingerprint missmatch! Is this a correct coldcard/wallet file?"
-        assert xfp == contents[KEYSTORE]["root_fingerprint"], fingerprint_missmatch_msg
-        label = "Coldcard {}".format(xfp)
-        contents[KEYSTORE]["label"] = label
-        # 5. ckcc xpub (master xpub)
-        master_ext_pubkey = dev.send_recv(CCProtocolPacker.get_xpub("m"), timeout=None)
-        contents[KEYSTORE]["ckcc_xpub"] = master_ext_pubkey
-
+    content_str = json.dumps(contents, indent=4)
     if dry_run:
-        pprint.pprint(contents)
+        click.echo(content_str)
     else:
-        content_str = json.dumps(contents, indent=4)
-        if outfile:
-            outfile.write(content_str)
-            click.echo("New wallet file created: {}".format(outfile.name))
-        else:
-            file.seek(0)
-            file.write(content_str)
-            file.truncate()
-            click.echo("{} coldcardified".format(file.name))
+        try:
+            outfile = outfile or "{}_cc".format(file)
+            with open(outfile, "w") as f:
+                f.write(content_str)
+                click.echo("New wallet file created: {}".format(outfile))
+        except Exception as e:
+            click.echo("Failed to dump wallet file: {}".format(e))
+            sys.exit(1)
 
     if dev:
         dev.close()

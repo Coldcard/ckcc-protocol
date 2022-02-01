@@ -4,6 +4,15 @@ import struct
 import binascii
 from collections import namedtuple
 
+
+B2A = lambda x: binascii.b2a_hex(x).decode('ascii')
+
+
+def xfp2str(xfp):
+    # Standardized way to show an xpub's fingerprint... it's a 4-byte string
+    # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
+    return binascii.b2a_hex(struct.pack('<I', xfp)).decode('ascii').upper()
+
 def dfu_parse(fd):
     # do just a little parsing of DFU headers, to find start/length of main binary
     # - not trying to support anything but what ../stm32/Makefile will generate

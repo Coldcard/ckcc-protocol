@@ -20,5 +20,6 @@ __pycache__/
 *.pyc
 
 .tags
+.idea
 
 *.egg-info

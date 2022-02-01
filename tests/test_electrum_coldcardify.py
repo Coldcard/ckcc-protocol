@@ -1,7 +1,5 @@
 import os
 import json
-import shutil
-import pytest
 from click.testing import CliRunner
 
 from ckcc.cli import electrum_coldcardify
@@ -30,12 +28,12 @@ def test_encrypted():
     assert "Failed to load wallet file" in result.output
 
 
-def test_no_op():
+def test_dry_run():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
         result = runner.invoke(electrum_coldcardify, [pth, "--dry-run"])
         assert result.exit_code == 0
-        loaded = eval(result.output)
+        loaded = json.loads(result.output)
         assert isinstance(loaded, dict)
         keystore = loaded["keystore"]
         assert_keystore(keystore)
@@ -54,15 +52,21 @@ def test_outfile():
         os.remove(outfile_path)
 
 
-def test_inplace():
+def test_outfile_same_as_file():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
-        # first copy file before changing it in place
-        new_pth = shutil.copy(pth, pth + "000")
-        result = runner.invoke(electrum_coldcardify, [new_pth])
+        result = runner.invoke(electrum_coldcardify, [pth, "-o", pth])
+        assert result.exit_code == 1
+        assert "'FILE' and '--outfile' cannot be the same\n" == result.output
+
+
+def test_no_options():
+    runner = CliRunner()
+    for pth in [ledger_path, trezor_path]:
+        result = runner.invoke(electrum_coldcardify, [pth])
+        new_pth = "{}_cc".format(pth)
         assert result.exit_code == 0
-        assert "Backed up original wallet file to" in result.output
-        assert "{} coldcardified".format(new_pth) in result.output
+        assert "New wallet file created: {}\n".format(new_pth) == result.output
         with open(new_pth, "r") as f:
             res = json.loads(f.read())
         assert_keystore(res["keystore"])

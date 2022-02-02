@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "ckcc-protocol"
+version = "1.2.1"
+description = "Coldcard CLI and Python Interface Library"
+authors = ["Your Name <you@example.com>"]
+license = "https://github.com/Coldcard/ckcc-protocol/blob/master/COPYING-CC"
+
+packages = [
+    { include = "ckcc" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+
+# may need "brew install hidapi" before this?
+hidapi = ">= 0.7.99.post21"
+
+# for CLI command option parsing
+click = {version = "^6.7", optional = true}
+
+# required by link-layer encryption in client.py
+ecdsa = "^0.13"
+pyaes = "*"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+
+
+[tool.poetry.scripts]
+ckcc = "ckcc.cli:main"
+
+
+[tool.poetry.extras]
+cli = ["click"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

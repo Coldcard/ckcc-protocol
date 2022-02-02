@@ -1,0 +1,287 @@
+[[package]]
+name = "atomicwrites"
+version = "1.4.0"
+description = "Atomic file writes."
+category = "dev"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[[package]]
+name = "attrs"
+version = "21.4.0"
+description = "Classes Without Boilerplate"
+category = "dev"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[package.extras]
+dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "furo", "sphinx", "sphinx-notfound-page", "pre-commit", "cloudpickle"]
+docs = ["furo", "sphinx", "zope.interface", "sphinx-notfound-page"]
+tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "cloudpickle"]
+tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "cloudpickle"]
+
+[[package]]
+name = "click"
+version = "6.7"
+description = "A simple wrapper around optparse for powerful command line utilities."
+category = "main"
+optional = true
+python-versions = "*"
+
+[[package]]
+name = "colorama"
+version = "0.4.4"
+description = "Cross-platform colored terminal text."
+category = "dev"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "ecdsa"
+version = "0.13.3"
+description = "ECDSA cryptographic signature library (pure python)"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "hidapi"
+version = "0.11.0.post2"
+description = "A Cython interface to the hidapi from https://github.com/libusb/hidapi"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "importlib-metadata"
+version = "4.8.3"
+description = "Read metadata from Python packages"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+typing-extensions = {version = ">=3.6.4", markers = "python_version < \"3.8\""}
+zipp = ">=0.5"
+
+[package.extras]
+docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
+perf = ["ipython"]
+testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "packaging", "pep517", "pyfakefs", "flufl.flake8", "pytest-perf (>=0.9.2)", "pytest-black (>=0.3.7)", "pytest-mypy", "importlib-resources (>=1.3)"]
+
+[[package]]
+name = "iniconfig"
+version = "1.1.1"
+description = "iniconfig: brain-dead simple config-ini parsing"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "packaging"
+version = "21.3"
+description = "Core utilities for Python packages"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
+
+[[package]]
+name = "pluggy"
+version = "1.0.0"
+description = "plugin and hook calling mechanisms for python"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+importlib-metadata = {version = ">=0.12", markers = "python_version < \"3.8\""}
+
+[package.extras]
+dev = ["pre-commit", "tox"]
+testing = ["pytest", "pytest-benchmark"]
+
+[[package]]
+name = "py"
+version = "1.11.0"
+description = "library with cross-python path, ini-parsing, io, code, log facilities"
+category = "dev"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "pyaes"
+version = "1.6.1"
+description = "Pure-Python Implementation of the AES block-cipher and common modes of operation"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "pyparsing"
+version = "3.0.7"
+description = "Python parsing module"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+diagrams = ["jinja2", "railroad-diagrams"]
+
+[[package]]
+name = "pytest"
+version = "6.2.5"
+description = "pytest: simple powerful testing with Python"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+atomicwrites = {version = ">=1.0", markers = "sys_platform == \"win32\""}
+attrs = ">=19.2.0"
+colorama = {version = "*", markers = "sys_platform == \"win32\""}
+importlib-metadata = {version = ">=0.12", markers = "python_version < \"3.8\""}
+iniconfig = "*"
+packaging = "*"
+pluggy = ">=0.12,<2.0"
+py = ">=1.8.2"
+toml = "*"
+
+[package.extras]
+testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
+
+[[package]]
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
+category = "dev"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+
+[[package]]
+name = "typing-extensions"
+version = "4.0.1"
+description = "Backported and Experimental Type Hints for Python 3.6+"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
+name = "zipp"
+version = "3.6.0"
+description = "Backport of pathlib-compatible object wrapper for zip files"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
+testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
+
+[extras]
+cli = ["click"]
+
+[metadata]
+lock-version = "1.1"
+python-versions = "^3.6"
+content-hash = "74e5d968e1ac2871b19a3d7f944fd3ca0c8a517d9d0014513f37ef7e30c623de"
+
+[metadata.files]
+atomicwrites = [
+    {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
+    {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},
+]
+attrs = [
+    {file = "attrs-21.4.0-py2.py3-none-any.whl", hash = "sha256:2d27e3784d7a565d36ab851fe94887c5eccd6a463168875832a1be79c82828b4"},
+    {file = "attrs-21.4.0.tar.gz", hash = "sha256:626ba8234211db98e869df76230a137c4c40a12d72445c45d5f5b716f076e2fd"},
+]
+click = [
+    {file = "click-6.7-py2.py3-none-any.whl", hash = "sha256:29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d"},
+    {file = "click-6.7.tar.gz", hash = "sha256:f15516df478d5a56180fbf80e68f206010e6d160fc39fa508b65e035fd75130b"},
+]
+colorama = [
+    {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
+    {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
+]
+ecdsa = [
+    {file = "ecdsa-0.13.3-py2.py3-none-any.whl", hash = "sha256:9814e700890991abeceeb2242586024d4758c8fc18445b194a49bd62d85861db"},
+    {file = "ecdsa-0.13.3.tar.gz", hash = "sha256:163c80b064a763ea733870feb96f9dd9b92216cfcacd374837af18e4e8ec3d4d"},
+]
+hidapi = [
+    {file = "hidapi-0.11.0.post2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:6fc745eaec01dcc25d71b02cd868e1e34e0c53c4ac7f0f0edbb3a56dbd5e50f8"},
+    {file = "hidapi-0.11.0.post2-cp310-cp310-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:23b54a90af7d4d73e730153099f37869feb27784649d1bf29a52ce9faf3168fb"},
+    {file = "hidapi-0.11.0.post2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c91ee15c358787583b8f403f9b7b40d48fa4d3e74544e6313f90de83a7695a96"},
+    {file = "hidapi-0.11.0.post2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9a70135e8091c8ae685374fcb148ee81b15423072e2ee32f40f7ad710879d4a"},
+    {file = "hidapi-0.11.0.post2-cp310-cp310-win32.whl", hash = "sha256:19ca6866dee8ac7668f3b4f12103c0df55ff65cda5c9c400aefc21fb29512004"},
+    {file = "hidapi-0.11.0.post2-cp310-cp310-win_amd64.whl", hash = "sha256:449f6a9f0230ec0af749a4f6057afd81285112d702e2b8b19059a061ec8df591"},
+    {file = "hidapi-0.11.0.post2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:f30a90663a399f71cd3df75d42422643eb3fc290ca19553eaee88ca352e626ff"},
+    {file = "hidapi-0.11.0.post2-cp36-cp36m-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:e8bd1395e25ae557f129973b2153fdb8a0d6debd0f7411ba72abe7dbe536ebe3"},
+    {file = "hidapi-0.11.0.post2-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:017f379e03f00a35ba12df9819df9bd219a14dd8444860d093a6f9878a505867"},
+    {file = "hidapi-0.11.0.post2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:afabcf8fdbdc355b907c03984258d7f9acc01eac5114837364fe227c239d53d7"},
+    {file = "hidapi-0.11.0.post2-cp36-cp36m-win32.whl", hash = "sha256:67953056555f48539f268f9326462f4a1d525191712fd6af3666e7787f4a609b"},
+    {file = "hidapi-0.11.0.post2-cp36-cp36m-win_amd64.whl", hash = "sha256:3083655c9306ff87c3f790949cdbac933fc8c6912dd7063c0c3e6e199b9e40b8"},
+    {file = "hidapi-0.11.0.post2-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:8f8e67042d5dbf6ecec0f8cbf347d99ad074dcb600754bc60609f3340c746977"},
+    {file = "hidapi-0.11.0.post2-cp37-cp37m-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:782d0c208d794c540e999b1737ddb9ebc36df604d7739889b9659fcc3819f4ce"},
+    {file = "hidapi-0.11.0.post2-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a19864e2528fff9c708126f72176790c0bb7cb1e31a904ccadc6b6f9fd29a7a1"},
+    {file = "hidapi-0.11.0.post2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:053f1f06a671b1e466339a04ee46d91b86932212aaf3b9160d358a6fae80ef50"},
+    {file = "hidapi-0.11.0.post2-cp37-cp37m-win32.whl", hash = "sha256:87cbeee15afe23759a3c8eb07eb0ecf156f5f4db98aa31ff2ceee4b45feac4f9"},
+    {file = "hidapi-0.11.0.post2-cp37-cp37m-win_amd64.whl", hash = "sha256:9e82b4aaa9c000c49b6fb1296974713b21d3e8fa3e0c87efab03998e4d6dbeee"},
+    {file = "hidapi-0.11.0.post2-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:1bc4ed3c34e4b0b6be589ef88845d7697bd81acf9079ded9d53ab1ebe874dc01"},
+    {file = "hidapi-0.11.0.post2-cp38-cp38-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:e7d28a6473626f7ddb83a32349196880e8ff38a809f4eeb221f212264c8c9431"},
+    {file = "hidapi-0.11.0.post2-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d15e7238bbeab71313b4366e65032e5db6c314a3323729e1d4a4798f6f6c111b"},
+    {file = "hidapi-0.11.0.post2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d84040de52295f043094ca2b6257c6c1fe390fd8d2623ae000a46122150b15b7"},
+    {file = "hidapi-0.11.0.post2-cp38-cp38-win32.whl", hash = "sha256:08da7855400a516a742c4dfd6a3b6d69ee56d281561f7fb284c7a289bb2d5b40"},
+    {file = "hidapi-0.11.0.post2-cp38-cp38-win_amd64.whl", hash = "sha256:08f5eb2e3e5451c3c631b6b018b3187b6a2fca9c3c200cb5a17fb69fd7f479bb"},
+    {file = "hidapi-0.11.0.post2-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:55d1a6cdbefb5de85bb54e6d4d4967554fed7d26b874d3290cb1a9f02dfa5865"},
+    {file = "hidapi-0.11.0.post2-cp39-cp39-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:7c70ec32cdfd0c1303fe4aa22ddf839282bdce279a0c038c6efdddc703342dd6"},
+    {file = "hidapi-0.11.0.post2-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:991b9c9f5a4400d3493cfba2511b0a7f6199eff3ef0968ca65bace32d0f811bf"},
+    {file = "hidapi-0.11.0.post2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ad8d5ce93c4ea2a51a10cd8405409252107350b0402e3372d905846c0e7326ae"},
+    {file = "hidapi-0.11.0.post2-cp39-cp39-win32.whl", hash = "sha256:89c51889894d389e0de63a2adb7faafd9c8c24928b50848365cd4b4d0d57e10b"},
+    {file = "hidapi-0.11.0.post2-cp39-cp39-win_amd64.whl", hash = "sha256:5a64b6509064b683ef8ca9888f71906e3dbc6909ab2e3361cbaf6d25a007ab5f"},
+    {file = "hidapi-0.11.0.post2.tar.gz", hash = "sha256:da815e0d1d4b2ef1ebbcc85034572105dca29627eb61881337aa39010f2ef8cb"},
+]
+importlib-metadata = [
+    {file = "importlib_metadata-4.8.3-py3-none-any.whl", hash = "sha256:65a9576a5b2d58ca44d133c42a241905cc45e34d2c06fd5ba2bafa221e5d7b5e"},
+    {file = "importlib_metadata-4.8.3.tar.gz", hash = "sha256:766abffff765960fcc18003801f7044eb6755ffae4521c8e8ce8e83b9c9b0668"},
+]
+iniconfig = [
+    {file = "iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
+    {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
+]
+packaging = [
+    {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
+    {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
+]
+pluggy = [
+    {file = "pluggy-1.0.0-py2.py3-none-any.whl", hash = "sha256:74134bbf457f031a36d68416e1509f34bd5ccc019f0bcc952c7b909d06b37bd3"},
+    {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
+]
+py = [
+    {file = "py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378"},
+    {file = "py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719"},
+]
+pyaes = [
+    {file = "pyaes-1.6.1.tar.gz", hash = "sha256:02c1b1405c38d3c370b085fb952dd8bea3fadcee6411ad99f312cc129c536d8f"},
+]
+pyparsing = [
+    {file = "pyparsing-3.0.7-py3-none-any.whl", hash = "sha256:a6c06a88f252e6c322f65faf8f418b16213b51bdfaece0524c1c1bc30c63c484"},
+    {file = "pyparsing-3.0.7.tar.gz", hash = "sha256:18ee9022775d270c55187733956460083db60b37d0d0fb357445f3094eed3eea"},
+]
+pytest = [
+    {file = "pytest-6.2.5-py3-none-any.whl", hash = "sha256:7310f8d27bc79ced999e760ca304d69f6ba6c6649c0b60fb0e04a4a77cacc134"},
+    {file = "pytest-6.2.5.tar.gz", hash = "sha256:131b36680866a76e6781d13f101efb86cf674ebb9762eb70d3082b6f29889e89"},
+]
+toml = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+typing-extensions = [
+    {file = "typing_extensions-4.0.1-py3-none-any.whl", hash = "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"},
+    {file = "typing_extensions-4.0.1.tar.gz", hash = "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e"},
+]
+zipp = [
+    {file = "zipp-3.6.0-py3-none-any.whl", hash = "sha256:9fe5ea21568a0a70e50f273397638d39b03353731e6cbbb3fd8502a33fec40bc"},
+    {file = "zipp-3.6.0.tar.gz", hash = "sha256:71c644c5369f4a6e07636f0aa966270449561fcea2e3d6747b8d23efaa9d7832"},
+]

@@ -10,11 +10,17 @@ This is the python code and command-line utilities you need to communicate with 
 
 - `pip install 'ckcc-protocol[cli]'`
 
+Or if you prefer poetry
+- `poetry install -E cli --no-dev`
+
 This installs a single helpful command line program: `ckcc`
 
 If you just want the python library, use:
 
 - `pip install ckcc-protocol`
+
+Or if you prefer poetry
+- `poetry install --no-dev`
 
 
 ## Setup If You Might Change the Code

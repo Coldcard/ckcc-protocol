@@ -3,13 +3,14 @@ import json
 from click.testing import CliRunner
 
 from ckcc.cli import electrum_coldcardify
+from ckcc.utils import filepath_append_cc
 
 
 # expecting cwd to be ckcc-protocol
 test_data_path = os.path.join("tests", "test_data")
 encrypted_path = os.path.join(test_data_path, "encrypted")
 ledger_path = os.path.join(test_data_path, "ledger")
-trezor_path = os.path.join(test_data_path, "trezor")
+trezor_path = os.path.join(test_data_path, "trezor.json")
 
 
 def assert_keystore(keystore):
@@ -64,7 +65,7 @@ def test_no_options():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
         result = runner.invoke(electrum_coldcardify, [pth])
-        new_pth = "{}_cc".format(pth)
+        new_pth = filepath_append_cc(pth)
         assert result.exit_code == 0
         assert "New wallet file created: {}\n".format(new_pth) == result.output
         with open(new_pth, "r") as f:

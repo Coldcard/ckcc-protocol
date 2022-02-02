@@ -1,5 +1,6 @@
 # (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
 #
+import os
 import struct
 import binascii
 from collections import namedtuple
@@ -117,5 +118,12 @@ def calc_local_pincode(psbt_sha, next_local_code):
 
     return '%06d' % (num % 1000000)
 
+
+def filepath_append_cc(f_path):
+    """Append '_cc' suffix to file path. Do consider one file extension"""
+    dirname = os.path.dirname(f_path)
+    filename, file_ext = os.path.splitext(os.path.basename(f_path))
+    result = os.path.join(dirname, "{}_cc".format(filename) + file_ext)
+    return result
 
 # EOF

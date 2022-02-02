@@ -28,7 +28,7 @@ from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, filepath_append_cc
 from ckcc.electrum import cc_adjust_hww_keystore
 
 
@@ -1060,8 +1060,9 @@ def electrum_coldcardify(file, outfile, dry_run):
     if dry_run:
         click.echo(content_str)
     else:
+        if outfile is None:
+            outfile = filepath_append_cc(file)
         try:
-            outfile = outfile or "{}_cc".format(file)
             with open(outfile, "w") as f:
                 f.write(content_str)
                 click.echo("New wallet file created: {}".format(outfile))

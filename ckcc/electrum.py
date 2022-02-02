@@ -1,3 +1,5 @@
+# (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
+#
 from ckcc.utils import xfp2str
 from ckcc.client import ColdcardDevice
 from ckcc.protocol import CCProtocolPacker

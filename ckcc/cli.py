@@ -28,9 +28,9 @@ from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, filepath_append_cc
-from ckcc.electrum import cc_adjust_hww_keystore
-
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
+from ckcc.electrum import cc_adjust_hww_keystore, filepath_append_cc, is_multisig_wallet, \
+    collect_multisig_hww_keystores_from_wallet, multisig_find_target
 
 global force_serial
 force_serial = None
@@ -1007,13 +1007,21 @@ def get_storage_locker():
     click.echo(ls)
 
 
+keystore_keys = ["derivation", "hw_type", "label", "root_fingerprint", "soft_device_id", "xpub"]
+
 @main.command('coldcardify')
 @click.argument('file', type=click.Path(exists=True), required=True)
 @click.option('--outfile', '-o', type=click.Path(),
               help="output file path where adjusted wallet file is written. "
                    "If this is not specified output is written to <original_file>_cc")
 @click.option('--dry-run', '-n', default=False, is_flag=True, help="do not write files instead pretty print to console")
-def electrum_coldcardify(file, outfile, dry_run):
+@click.option('--key', '-k', type=click.Choice(keystore_keys),
+              help="Multisig wallet keystore dict key based on which to match correct keystore "
+                   "(for example hw_type or root_fingerprint). Option required for multisig wallets")
+@click.option('--val', '-v', type=str, help="Multisig wallet value to match for specified key "
+                                            "(for example ledger[hw_type] or fffffff0[root_fingerprint])"
+                                            "Option required for multisig wallets")
+def electrum_coldcardify(file, outfile, dry_run, key, val):
     """
     Coldcardify electrum wallet file.
 
@@ -1046,17 +1054,35 @@ def electrum_coldcardify(file, outfile, dry_run):
     try:
         # open file only for reading and close it immediately after it is loaded into memory
         with open(file, "r") as f:
-            contents = json.loads(f.read())
+            wallet = json.loads(f.read())
     except Exception as e:
         click.echo("Failed to load wallet file: {}".format(e))
         sys.exit(1)
 
-    # for now only standard wallet
-    assert contents["wallet_type"] == "standard", "Not a standard wallet"
-    # below line adjust keystore dict in contents dict (in place)
-    cc_adjust_hww_keystore(contents["keystore"], dev)
+    wallet_type = wallet["wallet_type"]
+    try:
+        if wallet_type == "standard":
+            new_keystore = cc_adjust_hww_keystore(wallet["keystore"], dev)
+            wallet["keystore"] = new_keystore
+        elif is_multisig_wallet(wallet):
+            if key is None and val is None:
+                click.echo("--key and --val have to be specified for multisig wallets")
+                sys.exit(1)
+            k, keystore = multisig_find_target(
+                keystores=collect_multisig_hww_keystores_from_wallet(wallet),
+                key=key,
+                value=val,
+            )
+            new_keystore = cc_adjust_hww_keystore(keystore, dev)
+            wallet[k] = new_keystore
+        else:
+            click.echo("Unsupported wallet type: {}".format(wallet_type))
+            sys.exit(1)
+    except RuntimeError as e:
+        click.echo("Failed to adjust keystore: {}".format(e))
+        sys.exit(1)
 
-    content_str = json.dumps(contents, indent=4)
+    content_str = json.dumps(wallet, indent=4)
     if dry_run:
         click.echo(content_str)
     else:

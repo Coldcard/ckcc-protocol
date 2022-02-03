@@ -1025,7 +1025,7 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
     """
     Coldcardify electrum wallet file.
 
-    Adjusts standard hardware electrum wallet file to work with Coldcard. Under the hood this command changes
+    Adjusts electrum wallet file to work with Coldcard. Under the hood this command changes
     values in keystore dict in electrum wallet file. 'hw_type' is changed to coldcard. 'soft_device_id' is set to null.
     'ckcc_xpub' is added (if coldcard is connected). And 'label' is built using 'Coldcard' + master fingerprint.
 
@@ -1033,6 +1033,10 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
     Coldcard and wallet file describe the same wallet.
 
     If no '--outfile/-o' is specified, new wallet file will be created in same location with '_cc' suffix.
+
+    To coldcardify multisig wallet file, specify --key/--val that define the search for correct keystore.
+    For example if one has 2of3 multisig (ledger, trezor, colcdard) and wants to coldardify trezor:
+       ckcc coldcardify /file/path/to/you/multisig_wallet --key hw_type --val trezor
 
     Rationale:
       Users may want to switch their hardware wallet vendor. Yet they want to keep all of their electrum data

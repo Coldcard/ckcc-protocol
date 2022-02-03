@@ -1,0 +1,36 @@
+{
+    "addr_history": {},
+    "addresses": {
+        "mgb2DbgefFJKAbDwtcgvQJ6ViZmnFTgCeo": {
+            "pubkey": "0300fcbd59ff8329c25bf44e064c0a70fb3e259eff2d03dc3ec6cef573e580c3ce",
+            "type": "p2pkh"
+        },
+        "n3qGszoY3x7rhZVwZSM2tHWz5JepDWSxJL": {
+            "pubkey": "031e4f5dde3e1170da5b9fba04d8af8c61d9dfbf523b8870dfc209abdd3fc714c5",
+            "type": "p2pkh"
+        }
+    },
+    "fiat_value": {},
+    "frozen_coins": {},
+    "invoices": {},
+    "keystore": {
+        "keypairs": {
+            "0300fcbd59ff8329c25bf44e064c0a70fb3e259eff2d03dc3ec6cef573e580c3ce": "cUHywJvvdbcea8uMQueczZ9ZHcnjFw6ipBuAcrm7rAnmhenUWEbX",
+            "031e4f5dde3e1170da5b9fba04d8af8c61d9dfbf523b8870dfc209abdd3fc714c5": "cQQKy31b2yaQ1ZEF26pi3jFyPKbQ5ggdDDH8yZECT2h2YRxLSSVE"
+        },
+        "pw_hash_version": 1,
+        "type": "imported"
+    },
+    "labels": {},
+    "payment_requests": {},
+    "prevouts_by_scripthash": {},
+    "seed_version": 41,
+    "spent_outpoints": {},
+    "transactions": {},
+    "tx_fees": {},
+    "txi": {},
+    "txo": {},
+    "use_encryption": false,
+    "verified_tx3": {},
+    "wallet_type": "imported"
+}

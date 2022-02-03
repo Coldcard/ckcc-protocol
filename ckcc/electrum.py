@@ -42,11 +42,13 @@ def multisig_find_target(keystores: dict, key: str, value: str) -> tuple:
         for k, keystore in keystores.items()
         if keystore.get(key, None) == value
     ]
-    if len(result) != 1:
+    length = len(result)
+    if length != 1:
         # if this is true, we have found more than one keystore and therefore
         # key value pair is ambiguous
+        msg = "Found {} keystores.".format(length)
         raise RuntimeError(
-            "Found {} keystores. Provided key/value is ambiguous".format(len(result))
+            msg if length == 0 else msg + "{}:{} is ambiguous".format(key, value)
         )
     return result[0]
 

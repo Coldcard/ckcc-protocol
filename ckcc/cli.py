@@ -1037,6 +1037,10 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
     To coldcardify multisig wallet file, specify --key/--val that define the search for correct keystore.
     For example if one has 2of3 multisig (ledger, trezor, colcdard) and wants to coldardify trezor:
        ckcc coldcardify /file/path/to/you/multisig_wallet --key hw_type --val trezor
+    You do not need to define --key/--val if your coldcard is connected (loaded with correct seed and derivation path
+    of course). This will try to auto match correct keystore based on root_fingerprint key from obtained from connected
+    coldcard.
+
 
     Rationale:
       Users may want to switch their hardware wallet vendor. Yet they want to keep all of their electrum data
@@ -1070,15 +1074,30 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
             wallet["keystore"] = new_keystore
         elif is_multisig_wallet(wallet):
             if key is None and val is None:
-                click.echo("--key and --val have to be specified for multisig wallets")
-                sys.exit(1)
-            k, keystore = multisig_find_target(
-                keystores=collect_multisig_hww_keystores_from_wallet(wallet),
-                key=key,
-                value=val,
-            )
-            new_keystore = cc_adjust_hww_keystore(keystore, dev)
-            wallet[k] = new_keystore
+                # user haven't provided arguments - try some automagic if coldcard is connected
+                # look for root fingerprint
+                if dev:
+                    k, keystore = multisig_find_target(
+                        keystores=collect_multisig_hww_keystores_from_wallet(wallet),
+                        key="root_fingerprint",
+                        value=xfp2str(dev.master_fingerprint).lower(),
+                    )
+                    # is it sufficient to just check xfp?
+                    # shouldn't I try to re-create xpub (Vpub) or whatever I get as derivation path?
+                    new_keystore = cc_adjust_hww_keystore(keystore, dev)
+                    wallet[k] = new_keystore
+                else:
+                    # dev is not defined, key val is not defined, we are in multisig - have to fail
+                    click.echo("--key and --val have to be specified for multisig wallets")
+                    sys.exit(1)
+            else:
+                k, keystore = multisig_find_target(
+                    keystores=collect_multisig_hww_keystores_from_wallet(wallet),
+                    key=key,
+                    value=val,
+                )
+                new_keystore = cc_adjust_hww_keystore(keystore, dev)
+                wallet[k] = new_keystore
         else:
             click.echo("Unsupported wallet type: {}".format(wallet_type))
             sys.exit(1)

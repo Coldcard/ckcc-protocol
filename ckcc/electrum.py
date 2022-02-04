@@ -23,6 +23,12 @@ def is_multisig_wallet(wallet: dict) -> bool:
     return False
 
 
+def is_multisig_wallet_key(key: str) -> bool:
+    if re.match(MULTISIG_WALLET_KEY_PATTERN, key):
+        return True
+    return False
+
+
 def collect_multisig_hww_keystores_from_wallet(wallet: dict) -> dict:
     """Find all hardware keystore objects in multisig wallet dict"""
     if not is_multisig_wallet(wallet):
@@ -30,7 +36,7 @@ def collect_multisig_hww_keystores_from_wallet(wallet: dict) -> dict:
     return {
         key: value
         for key, value in wallet.items()
-        if re.match(MULTISIG_WALLET_KEY_PATTERN, key)
+        if is_multisig_wallet_key(key)
         if is_hww_keystore(value)
     }
 
@@ -98,3 +104,18 @@ def cc_adjust_hww_keystore(keystore: dict, dev: ColdcardDevice = None) -> dict:
         master_ext_pubkey = dev.send_recv(CCProtocolPacker.get_xpub("m"), timeout=None)
         new_keystore["ckcc_xpub"] = master_ext_pubkey
     return new_keystore
+
+
+def cc_adjust_multisig_hww_keystore(wallet: dict, key: str, value: str, dev: ColdcardDevice = None) -> dict:
+    """Update multisig wallet keystore"""
+    # 1. find target keystore
+    k, keystore = multisig_find_target(
+        keystores=collect_multisig_hww_keystores_from_wallet(wallet),
+        key=key,
+        value=value,
+    )
+    # 2. create new adjusted keystore for target
+    new_keystore = cc_adjust_hww_keystore(keystore, dev)
+    # 3. update target keystore in wallet
+    wallet[k] = new_keystore
+    return wallet

@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import pytest
 from click.testing import CliRunner
@@ -6,7 +7,7 @@ from click.testing import CliRunner
 from ckcc.cli import electrum_coldcardify
 from ckcc.electrum import (
     filepath_append_cc, multisig_find_target, collect_multisig_hww_keystores_from_wallet,
-    cc_adjust_hww_keystore
+    cc_adjust_hww_keystore, is_multisig_wallet_key, is_multisig_wallet
 )
 
 
@@ -131,6 +132,26 @@ def test_not_standard_wallet():
         result = runner.invoke(electrum_coldcardify, [pth])
         assert result.exit_code == 1
         assert result.output == "Unsupported wallet type: {}\n".format(name)
+
+
+def test_is_multisig_wallet():
+    valid = ["2of3", "2of2", "35of50"]
+    for val in valid:
+        val = {"wallet_type": val}
+        assert is_multisig_wallet(val) is True
+    invalid = ["a2of3", "2ofo3", "2of3a", "aaa", "x", "of"]
+    for val in invalid:
+        val = {"wallet_type": val}
+        assert is_multisig_wallet(val) is False
+
+
+def test_is_multisig_wallet_key():
+    valid = ["x1/", "x2/", "x30/", "x156/"]
+    for val in valid:
+        assert is_multisig_wallet_key(val) is True
+    invalid = ["1/", "x/", "xxxx", "aaa", "x", "of", "ax1/", "x1/a", "x1a/"]
+    for val in invalid:
+        assert is_multisig_wallet_key(val) is False
 
 
 def test_multisig():

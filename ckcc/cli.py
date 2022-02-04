@@ -29,8 +29,9 @@ from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
-from ckcc.electrum import cc_adjust_hww_keystore, filepath_append_cc, is_multisig_wallet, \
-    collect_multisig_hww_keystores_from_wallet, multisig_find_target
+from ckcc.electrum import (
+    cc_adjust_hww_keystore, filepath_append_cc, is_multisig_wallet, cc_adjust_multisig_hww_keystore
+)
 
 global force_serial
 force_serial = None
@@ -1077,27 +1078,25 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
                 # user haven't provided arguments - try some automagic if coldcard is connected
                 # look for root fingerprint
                 if dev:
-                    k, keystore = multisig_find_target(
-                        keystores=collect_multisig_hww_keystores_from_wallet(wallet),
+                    cc_adjust_multisig_hww_keystore(
+                        wallet,
                         key="root_fingerprint",
                         value=xfp2str(dev.master_fingerprint).lower(),
+                        dev=dev
                     )
                     # is it sufficient to just check xfp?
                     # shouldn't I try to re-create xpub (Vpub) or whatever I get as derivation path?
-                    new_keystore = cc_adjust_hww_keystore(keystore, dev)
-                    wallet[k] = new_keystore
                 else:
                     # dev is not defined, key val is not defined, we are in multisig - have to fail
                     click.echo("--key and --val have to be specified for multisig wallets")
                     sys.exit(1)
             else:
-                k, keystore = multisig_find_target(
-                    keystores=collect_multisig_hww_keystores_from_wallet(wallet),
+                cc_adjust_multisig_hww_keystore(
+                    wallet,
                     key=key,
                     value=val,
+                    dev=dev
                 )
-                new_keystore = cc_adjust_hww_keystore(keystore, dev)
-                wallet[k] = new_keystore
         else:
             click.echo("Unsupported wallet type: {}".format(wallet_type))
             sys.exit(1)

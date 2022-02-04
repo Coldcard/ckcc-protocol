@@ -1074,23 +1074,23 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
             new_keystore = cc_adjust_hww_keystore(wallet["keystore"], dev)
             wallet["keystore"] = new_keystore
         elif is_multisig_wallet(wallet):
-            if key is None and val is None:
+            if key is None and val is None and dev is None:
+                # dev is not defined, key val is not defined, we are in multisig - have to fail
+                click.echo("--key and --val have to be specified for multisig wallets")
+                sys.exit(1)
+            elif key is None and val is None and dev:
                 # user haven't provided arguments - try some automagic if coldcard is connected
                 # look for root fingerprint
-                if dev:
-                    cc_adjust_multisig_hww_keystore(
-                        wallet,
-                        key="root_fingerprint",
-                        value=xfp2str(dev.master_fingerprint).lower(),
-                        dev=dev
-                    )
-                    # is it sufficient to just check xfp?
-                    # shouldn't I try to re-create xpub (Vpub) or whatever I get as derivation path?
-                else:
-                    # dev is not defined, key val is not defined, we are in multisig - have to fail
-                    click.echo("--key and --val have to be specified for multisig wallets")
-                    sys.exit(1)
+                cc_adjust_multisig_hww_keystore(
+                    wallet,
+                    key="root_fingerprint",
+                    value=xfp2str(dev.master_fingerprint).lower(),
+                    dev=dev
+                )
+                # is it sufficient to just check xfp?
+                # shouldn't I try to re-create xpub (Vpub) or whatever I get as derivation path?
             else:
+                # key val specified
                 cc_adjust_multisig_hww_keystore(
                     wallet,
                     key=key,

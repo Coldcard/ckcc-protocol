@@ -1018,10 +1018,10 @@ keystore_keys = ["derivation", "hw_type", "label", "root_fingerprint", "soft_dev
 @click.option('--dry-run', '-n', default=False, is_flag=True, help="do not write files instead pretty print to console")
 @click.option('--key', '-k', type=click.Choice(keystore_keys),
               help="Multisig wallet keystore dict key based on which to match correct keystore "
-                   "(for example hw_type or root_fingerprint). Option required for multisig wallets")
+                   "(for example hw_type or root_fingerprint). Option required for multisig wallets if coldcard not connected")
 @click.option('--val', '-v', type=str, help="Multisig wallet value to match for specified key "
                                             "(for example ledger[hw_type] or fffffff0[root_fingerprint])"
-                                            "Option required for multisig wallets")
+                                            "Option required for multisig wallets if coldcard not connected")
 def electrum_coldcardify(file, outfile, dry_run, key, val):
     """
     Coldcardify electrum wallet file.
@@ -1037,9 +1037,9 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
 
     To coldcardify multisig wallet file, specify --key/--val that define the search for correct keystore.
     For example if one has 2of3 multisig (ledger, trezor, colcdard) and wants to coldardify trezor:
-       ckcc coldcardify /file/path/to/you/multisig_wallet --key hw_type --val trezor
+       ckcc coldcardify /file/path/to/your/multisig_wallet --key hw_type --val trezor
     You do not need to define --key/--val if your coldcard is connected (loaded with correct seed and derivation path
-    of course). This will try to auto match correct keystore based on root_fingerprint key from obtained from connected
+    of course). This will try to auto match correct keystore based on root_fingerprint key obtained from connected
     coldcard.
 
 

@@ -4,7 +4,7 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from ckcc.cli import electrum_coldcardify
+from ckcc.cli import electrum_convert2cc
 from ckcc.electrum import (
     filepath_append_cc, multisig_find_target, collect_multisig_hww_keystores_from_wallet,
     cc_adjust_hww_keystore, is_multisig_wallet_key, is_multisig_wallet
@@ -68,7 +68,7 @@ def test_filepath_append_cc():
 
 def test_encrypted():
     runner = CliRunner()
-    result = runner.invoke(electrum_coldcardify, [encrypted_path, "--dry-run"])
+    result = runner.invoke(electrum_convert2cc, [encrypted_path, "--dry-run"])
     assert result.exit_code == 1
     assert "Failed to load wallet file" in result.output
 
@@ -76,7 +76,7 @@ def test_encrypted():
 def test_dry_run():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
-        result = runner.invoke(electrum_coldcardify, [pth, "--dry-run"])
+        result = runner.invoke(electrum_convert2cc, [pth, "--dry-run"])
         assert result.exit_code == 0
         loaded = json.loads(result.output)
         assert isinstance(loaded, dict)
@@ -88,7 +88,7 @@ def test_outfile():
     runner = CliRunner()
     for pth, name in zip([ledger_path, trezor_path], ["ledger00", "trezor00"]):
         outfile_path = os.path.join(test_data_path, name)
-        result = runner.invoke(electrum_coldcardify, [pth, "-o", outfile_path])
+        result = runner.invoke(electrum_convert2cc, [pth, "-o", outfile_path])
         assert result.exit_code == 0
         assert "New wallet file created: tests/test_data/{}\n".format(name) == result.output
         with open(outfile_path, "r") as f:
@@ -100,7 +100,7 @@ def test_outfile():
 def test_outfile_same_as_file():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
-        result = runner.invoke(electrum_coldcardify, [pth, "-o", pth])
+        result = runner.invoke(electrum_convert2cc, [pth, "-o", pth])
         assert result.exit_code == 1
         assert "'FILE' and '--outfile' cannot be the same\n" == result.output
 
@@ -108,7 +108,7 @@ def test_outfile_same_as_file():
 def test_no_options():
     runner = CliRunner()
     for pth in [ledger_path, trezor_path]:
-        result = runner.invoke(electrum_coldcardify, [pth])
+        result = runner.invoke(electrum_convert2cc, [pth])
         new_pth = filepath_append_cc(pth)
         assert result.exit_code == 0
         assert "New wallet file created: {}\n".format(new_pth) == result.output
@@ -121,7 +121,7 @@ def test_no_options():
 def test_not_hww_wallet():
     runner = CliRunner()
     for pth in [bip32_path]:
-        result = runner.invoke(electrum_coldcardify, [pth])
+        result = runner.invoke(electrum_convert2cc, [pth])
         assert result.exit_code == 1
         assert result.output == "Failed to adjust keystore: Not a hardware wallet type\n"
 
@@ -129,7 +129,7 @@ def test_not_hww_wallet():
 def test_not_standard_wallet():
     runner = CliRunner()
     for name, pth in [("2fa", a2fa_path), ("imported", import_path)]:
-        result = runner.invoke(electrum_coldcardify, [pth])
+        result = runner.invoke(electrum_convert2cc, [pth])
         assert result.exit_code == 1
         assert result.output == "Unsupported wallet type: {}\n".format(name)
 
@@ -156,7 +156,7 @@ def test_is_multisig_wallet_key():
 
 def test_multisig():
     runner = CliRunner()
-    result = runner.invoke(electrum_coldcardify, [multi3of5_path, "-k", "hw_type", "-v", "ledger"])
+    result = runner.invoke(electrum_convert2cc, [multi3of5_path, "-k", "hw_type", "-v", "ledger"])
     assert result.exit_code == 0
     new_pth = filepath_append_cc(multi3of5_path)
     assert "New wallet file created: {}\n".format(new_pth) == result.output
@@ -168,7 +168,7 @@ def test_multisig():
     assert res["x3/"]["hw_type"] == "trezor"
     os.remove(new_pth)
 
-    result = runner.invoke(electrum_coldcardify, [multi3of5_path, "-k", "root_fingerprint", "-v", "7633218e"])
+    result = runner.invoke(electrum_convert2cc, [multi3of5_path, "-k", "root_fingerprint", "-v", "7633218e"])
     assert result.exit_code == 1
     assert "Found 2 keystores" in result.output
 

@@ -1010,7 +1010,7 @@ def get_storage_locker():
 
 keystore_keys = ["derivation", "hw_type", "label", "root_fingerprint", "soft_device_id", "xpub"]
 
-@main.command('coldcardify')
+@main.command('convert2cc')
 @click.argument('file', type=click.Path(exists=True), required=True)
 @click.option('--outfile', '-o', type=click.Path(),
               help="output file path where adjusted wallet file is written. "
@@ -1022,9 +1022,9 @@ keystore_keys = ["derivation", "hw_type", "label", "root_fingerprint", "soft_dev
 @click.option('--val', '-v', type=str, help="Multisig wallet value to match for specified key "
                                             "(for example ledger[hw_type] or fffffff0[root_fingerprint])"
                                             "Option required for multisig wallets if coldcard not connected")
-def electrum_coldcardify(file, outfile, dry_run, key, val):
+def electrum_convert2cc(file, outfile, dry_run, key, val):
     """
-    Coldcardify electrum wallet file.
+    Convert electrum wallet file to coldcard.
 
     Adjusts electrum wallet file to work with Coldcard. Under the hood this command changes
     values in keystore dict in electrum wallet file. 'hw_type' is changed to coldcard. 'soft_device_id' is set to null.
@@ -1035,9 +1035,9 @@ def electrum_coldcardify(file, outfile, dry_run, key, val):
 
     If no '--outfile/-o' is specified, new wallet file will be created in same location with '_cc' suffix.
 
-    To coldcardify multisig wallet file, specify --key/--val that define the search for correct keystore.
+    To convert2cc multisig wallet file, specify --key/--val that define the search for correct keystore.
     For example if one has 2of3 multisig (ledger, trezor, colcdard) and wants to coldardify trezor:
-       ckcc coldcardify /file/path/to/your/multisig_wallet --key hw_type --val trezor
+       ckcc convert2cc /file/path/to/your/multisig_wallet --key hw_type --val trezor
     You do not need to define --key/--val if your coldcard is connected (loaded with correct seed and derivation path
     of course). This will try to auto match correct keystore based on root_fingerprint key obtained from connected
     coldcard.

@@ -3,6 +3,7 @@
 import re
 import os
 import copy
+import json
 
 from ckcc.utils import xfp2str
 from ckcc.client import ColdcardDevice
@@ -59,7 +60,7 @@ def multisig_find_target(keystores: dict, key: str, value: str) -> tuple:
     return result[0]
 
 
-def filepath_append_cc(f_path):
+def filepath_append_cc(f_path: str) -> str:
     """Append '_cc' suffix to file path. Do consider one file extension"""
     dirname = os.path.dirname(f_path)
     filename, file_ext = os.path.splitext(os.path.basename(f_path))
@@ -119,3 +120,37 @@ def cc_adjust_multisig_hww_keystore(wallet: dict, key: str, value: str, dev: Col
     # 3. update target keystore in wallet
     wallet[k] = new_keystore
     return wallet
+
+
+def convert2cc(wallet_str: str, dev: ColdcardDevice = None, key: str = None, val: str = None):
+    wallet = json.loads(wallet_str)
+    wallet_type = wallet["wallet_type"]
+    if wallet_type == "standard":
+        new_keystore = cc_adjust_hww_keystore(wallet["keystore"], dev)
+        wallet["keystore"] = new_keystore
+    elif is_multisig_wallet(wallet):
+        if key is None and val is None and dev is None:
+            # dev is not defined, key val is not defined, we are in multisig - have to fail
+            raise RuntimeError("--key and --val have to be specified for multisig wallets")
+        elif key is None and val is None and dev:
+            # user haven't provided arguments - try some auto-magic if coldcard is connected
+            # look for root fingerprint
+            cc_adjust_multisig_hww_keystore(
+                wallet,
+                key="root_fingerprint",
+                value=xfp2str(dev.master_fingerprint).lower(),
+                dev=dev
+            )
+            # is it sufficient to just check xfp?
+            # shouldn't I try to re-create xpub (Vpub) or whatever I get as derivation path?
+        else:
+            # key val specified
+            cc_adjust_multisig_hww_keystore(
+                wallet,
+                key=key,
+                value=val,
+                dev=dev
+            )
+    else:
+        raise RuntimeError("Unsupported wallet type: {}".format(wallet_type))
+    return json.dumps(wallet)

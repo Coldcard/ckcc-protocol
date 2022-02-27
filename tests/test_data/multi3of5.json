@@ -67,14 +67,17 @@
             "tb1qxsqg669ju7qqw653zya5a5aulcaxwq8wnfejk20xjv0sm9q9cstqky9pum"
         ]
     },
+    "channels": {},
     "fiat_value": {},
     "frozen_coins": {},
     "invoices": {},
     "labels": {},
     "payment_requests": {},
     "prevouts_by_scripthash": {},
-    "seed_version": 41,
+    "qt-console-history": [],
+    "seed_version": 43,
     "spent_outpoints": {},
+    "stored_height": 2163195,
     "transactions": {},
     "tx_fees": {},
     "txi": {},
@@ -82,6 +85,12 @@
     "use_encryption": false,
     "verified_tx3": {},
     "wallet_type": "3of5",
+    "winpos-qt": [
+        167,
+        152,
+        840,
+        400
+    ],
     "x1/": {
         "derivation": "m/1'",
         "pw_hash_version": 1,

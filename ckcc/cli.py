@@ -29,9 +29,7 @@ from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
-from ckcc.electrum import (
-    cc_adjust_hww_keystore, filepath_append_cc, is_multisig_wallet, cc_adjust_multisig_hww_keystore
-)
+from ckcc.electrum import filepath_append_cc, convert2cc
 
 global force_serial
 force_serial = None
@@ -1063,56 +1061,23 @@ def electrum_convert2cc(file, outfile, dry_run, key, val):
     try:
         # open file only for reading and close it immediately after it is loaded into memory
         with open(file, "r") as f:
-            wallet = json.loads(f.read())
+            wallet_str = f.read()
+        new_wallet_str = convert2cc(wallet_str=wallet_str, dev=dev, key=key, val=val)
+    except json.JSONDecodeError as e:
+        click.echo("Failed to load wallet file {}".format(e))
+        sys.exit(1)
     except Exception as e:
-        click.echo("Failed to load wallet file: {}".format(e))
+        click.echo("convert2cc failed: {}".format(e))
         sys.exit(1)
 
-    wallet_type = wallet["wallet_type"]
-    try:
-        if wallet_type == "standard":
-            new_keystore = cc_adjust_hww_keystore(wallet["keystore"], dev)
-            wallet["keystore"] = new_keystore
-        elif is_multisig_wallet(wallet):
-            if key is None and val is None and dev is None:
-                # dev is not defined, key val is not defined, we are in multisig - have to fail
-                click.echo("--key and --val have to be specified for multisig wallets")
-                sys.exit(1)
-            elif key is None and val is None and dev:
-                # user haven't provided arguments - try some automagic if coldcard is connected
-                # look for root fingerprint
-                cc_adjust_multisig_hww_keystore(
-                    wallet,
-                    key="root_fingerprint",
-                    value=xfp2str(dev.master_fingerprint).lower(),
-                    dev=dev
-                )
-                # is it sufficient to just check xfp?
-                # shouldn't I try to re-create xpub (Vpub) or whatever I get as derivation path?
-            else:
-                # key val specified
-                cc_adjust_multisig_hww_keystore(
-                    wallet,
-                    key=key,
-                    value=val,
-                    dev=dev
-                )
-        else:
-            click.echo("Unsupported wallet type: {}".format(wallet_type))
-            sys.exit(1)
-    except RuntimeError as e:
-        click.echo("Failed to adjust keystore: {}".format(e))
-        sys.exit(1)
-
-    content_str = json.dumps(wallet, indent=4)
     if dry_run:
-        click.echo(content_str)
+        click.echo(new_wallet_str)
     else:
         if outfile is None:
             outfile = filepath_append_cc(file)
         try:
             with open(outfile, "w") as f:
-                f.write(content_str)
+                f.write(new_wallet_str)
                 click.echo("New wallet file created: {}".format(outfile))
         except Exception as e:
             click.echo("Failed to dump wallet file: {}".format(e))

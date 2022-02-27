@@ -123,7 +123,7 @@ def test_not_hww_wallet():
     for pth in [bip32_path]:
         result = runner.invoke(electrum_convert2cc, [pth])
         assert result.exit_code == 1
-        assert result.output == "Failed to adjust keystore: Not a hardware wallet type\n"
+        assert result.output == "convert2cc failed: Not a hardware wallet type\n"
 
 
 def test_not_standard_wallet():
@@ -131,7 +131,7 @@ def test_not_standard_wallet():
     for name, pth in [("2fa", a2fa_path), ("imported", import_path)]:
         result = runner.invoke(electrum_convert2cc, [pth])
         assert result.exit_code == 1
-        assert result.output == "Unsupported wallet type: {}\n".format(name)
+        assert result.output == "convert2cc failed: Unsupported wallet type: {}\n".format(name)
 
 
 def test_is_multisig_wallet():

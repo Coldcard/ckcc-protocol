@@ -280,7 +280,7 @@ def file_upload(filename, blksize, multisig=False):
     # NOTE: mostly for debug/dev usage.
     with get_device() as dev:
 
-        file_len, sha = real_file_upload(fd=filename, dev=dev, blksize=blksize)
+        file_len, sha = real_file_upload(filename, dev, blksize=blksize)
 
         if multisig:
             dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
@@ -293,7 +293,7 @@ def file_upload(filename, blksize, multisig=False):
 def firmware_upgrade(filename, stop_early):
     """Send firmware file (.dfu) and trigger upgrade process"""
     with get_device() as dev:
-        real_file_upload(fd=filename, dev=dev, do_upgrade=True, do_reboot=(not stop_early))
+        real_file_upload(filename, dev, do_upgrade=True, do_reboot=(not stop_early))
 
 
 @main.command('xpub')
@@ -510,7 +510,7 @@ def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_
             sys.exit(1)
 
         # upload the transaction
-        txn_len, sha = real_file_upload(fd=psbt_in, dev=dev)
+        txn_len, sha = real_file_upload(psbt_in, dev)
 
         flags = 0x0
         if visualize or signed:
@@ -802,7 +802,7 @@ def hsm_setup(policy=None, dry_run=False):
                 click.echo("Policy ok")
                 sys.exit(0)
 
-            file_len, sha = real_file_upload(fd=open(policy, 'rb'), dev=dev)
+            file_len, sha = real_file_upload(open(policy, 'rb'), dev)
 
             dev.send_recv(CCProtocolPacker.hsm_start(file_len, sha))
         else:

@@ -28,7 +28,8 @@ from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
+from ckcc.electrum import filepath_append_cc, convert2cc
 
 global force_serial
 force_serial = None
@@ -46,14 +47,6 @@ def my_hook(ty, val, tb):
     else:
         return _sys_excepthook(ty, val, tb)
 sys.excepthook=my_hook
-
-B2A = lambda x: b2a_hex(x).decode('ascii')
-
-
-def xfp2str(xfp):
-    # Standardized way to show an xpub's fingerprint... it's a 4-byte string
-    # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
-    return b2a_hex(struct.pack('<I', xfp)).decode('ascii').upper()
 
 
 @contextlib.contextmanager
@@ -1006,5 +999,86 @@ def get_storage_locker():
     with get_device() as dev:
         ls = dev.send_recv(CCProtocolPacker.get_storage_locker(), timeout=None)
         click.echo(ls)
+
+
+keystore_keys = ["derivation", "hw_type", "label", "root_fingerprint", "soft_device_id", "xpub"]
+
+@main.command('convert2cc')
+@click.argument('file', type=click.Path(exists=True), required=True)
+@click.option('--outfile', '-o', type=click.Path(),
+              help="output file path where adjusted wallet file is written. "
+                   "If this is not specified output is written to <original_file>_cc")
+@click.option('--dry-run', '-n', default=False, is_flag=True, help="do not write files instead pretty print to console")
+@click.option('--key', '-k', type=click.Choice(keystore_keys),
+              help="Multisig wallet keystore dict key based on which to match correct keystore "
+                   "(for example hw_type or root_fingerprint). Option required for multisig wallets if coldcard not connected")
+@click.option('--val', '-v', type=str, help="Multisig wallet value to match for specified key "
+                                            "(for example ledger[hw_type] or fffffff0[root_fingerprint])"
+                                            "Option required for multisig wallets if coldcard not connected")
+def electrum_convert2cc(file, outfile, dry_run, key, val):
+    """
+    Convert electrum wallet file to coldcard.
+
+    Adjusts electrum wallet file to work with Coldcard. Under the hood this command changes
+    values in keystore dict in electrum wallet file. 'hw_type' is changed to coldcard. 'soft_device_id' is set to null.
+    'ckcc_xpub' is added (if coldcard is connected). And 'label' is built using 'Coldcard' + master fingerprint.
+
+    Your Coldcard does not need to be connected, but it is better to have it connected because it can be checked whether
+    Coldcard and wallet file describe the same wallet.
+
+    If no '--outfile/-o' is specified, new wallet file will be created in same location with '_cc' suffix.
+
+    To convert2cc multisig wallet file, specify --key/--val that define the search for correct keystore.
+    For example if one has 2of3 multisig (ledger, trezor, colcdard) and wants to coldardify trezor:
+       ckcc convert2cc /file/path/to/your/multisig_wallet --key hw_type --val trezor
+    You do not need to define --key/--val if your coldcard is connected (loaded with correct seed and derivation path
+    of course). This will try to auto match correct keystore based on root_fingerprint key obtained from connected
+    coldcard.
+
+
+    Rationale:
+      Users may want to switch their hardware wallet vendor. Yet they want to keep all of their electrum data
+      (labels, contacts, payment requests...). Another possibility is when someone's hww gets lost or broken,
+      and they still have a seed, this seed can be loaded to new Coldcard (check https://coldcard.com/docs/import)
+      and their previous electrum wallet can be coldcardified.
+
+    * Does not work with encrypted wallet files - please decrypt first via electrum interface.
+    """
+    if file == outfile:
+        click.echo("'FILE' and '--outfile' cannot be the same")
+        sys.exit(1)
+    try:
+        # this may be changed to context manager once https://github.com/Coldcard/ckcc-protocol/pull/14 gets merged
+        dev = get_device()
+    except KeyError:
+        dev = None
+
+    try:
+        # open file only for reading and close it immediately after it is loaded into memory
+        with open(file, "r") as f:
+            wallet_str = f.read()
+        new_wallet_str = convert2cc(wallet_str=wallet_str, dev=dev, key=key, val=val)
+    except json.JSONDecodeError as e:
+        click.echo("Failed to load wallet file {}".format(e))
+        sys.exit(1)
+    except Exception as e:
+        click.echo("convert2cc failed: {}".format(e))
+        sys.exit(1)
+
+    if dry_run:
+        click.echo(new_wallet_str)
+    else:
+        if outfile is None:
+            outfile = filepath_append_cc(file)
+        try:
+            with open(outfile, "w") as f:
+                f.write(new_wallet_str)
+                click.echo("New wallet file created: {}".format(outfile))
+        except Exception as e:
+            click.echo("Failed to dump wallet file: {}".format(e))
+            sys.exit(1)
+
+    if dev:
+        dev.close()
 
 # EOF

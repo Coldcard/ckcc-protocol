@@ -1,0 +1,192 @@
+{
+    "addr_history": {
+        "tb1q0tgs4r89esl0m6emahf0xcz63kyz92pzxl69w9": [],
+        "tb1q2zg6ljw0r0rfw4njrcjd48dzc9a86p8hgljlwj": [],
+        "tb1q4jefgulpwpxtx25tkfxypwzj5qjm94t694ad5z": [],
+        "tb1q5mhhpkzt9n6twl05q7gdr278mayl4gsdqv4ff5": [],
+        "tb1q8qgdz86w3yjt9rlea5yydk8gp3sl3caju2xr0n": [],
+        "tb1q9fcfp4xc62eaz40qxfynczkd2wwgprktgmcudf": [],
+        "tb1q9jh9uzhaauenmpqwhxmwrj7449lvveekfta5kq": [
+            [
+                "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c",
+                2138279
+            ]
+        ],
+        "tb1q9qx9phjfxkzswjhf5qc3q2cx58a0d3vavqa7fu": [],
+        "tb1q9upnsjxd7qcmzj0h825plwhdya4fl6gr45mdu9": [],
+        "tb1qas9vpp2h7kpcyetdgeheaj6n9m5qsxztcna2xh": [],
+        "tb1qc9lrygeurs39xdgt5zepcgf9k8fuc09jjxaq4y": [],
+        "tb1qcegz3lkxuwk2f7xpgjpld5s38tf4fdhlvlvrmm": [],
+        "tb1qcrx5gx5vytle4syse3kvx7rr3p4qw6dgh82stj": [],
+        "tb1qczy6jxej2qagvzwpdtnyzhj0sxyqxy0fdxrufm": [],
+        "tb1qd7xhtw6ennkrg3ys0tmll3wjt5v9h7llpqvgcs": [],
+        "tb1qefafzcq8mp7h4w6keeh6yzdfqz00k9anlsnsgm": [],
+        "tb1qej2j2zwc9grkr5lja77sstcngccr9dvp5rxt0j": [],
+        "tb1qgkwn6lvkcad0u857gsaqjugdlladzew8z64f5g": [
+            [
+                "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e",
+                2138285
+            ]
+        ],
+        "tb1qgznxl9va7uksephynxdq28xrqefjln5yuj7yzu": [],
+        "tb1qj5sr0fuvc4437k9xu2w243d2cqdga07w44cwc0": [],
+        "tb1qjyvgpqf8drv0ly906556m43fkvpv0yxen7urss": [],
+        "tb1qkm2f7392g3mz34vcvtr4prkfqw3rpsc73ajjv6": [],
+        "tb1qlfmy3fhzfyxeagn9ly7h50vjstx38wcnwhz7k2": [],
+        "tb1qlj8rmuhpfg4xkftg0zjghnlzdzeq4trmrfmf6u": [],
+        "tb1qnwxvapverw8ne4trl9957ktcq0lmvhntd37w7y": [],
+        "tb1qpv6g49qlye5kdj8pckqyzgg956a0l22j37kxlk": [],
+        "tb1qrmdwn3txhag9ad4x2degay9lnp778nm4lyqxrd": [],
+        "tb1qsdl73sx8wr7h3ee0v6cxvxyyjqjjey89ljuyhv": [],
+        "tb1qsm5t5ec6kj5ycldxzsrpddny0n8l7y8ll8kcfx": [],
+        "tb1qsmvlht2f5ja942jyejf9mqhdq2828kjhaf3qyx": [],
+        "tb1qsmykk6mm6x574hrydue9tprse6lvsyqs4uxpa6": [],
+        "tb1qxyt4u22t9ht3hcuhs2584x33j9rph946n33key": []
+    },
+    "addresses": {
+        "change": [
+            "tb1q0tgs4r89esl0m6emahf0xcz63kyz92pzxl69w9",
+            "tb1qjyvgpqf8drv0ly906556m43fkvpv0yxen7urss",
+            "tb1qlfmy3fhzfyxeagn9ly7h50vjstx38wcnwhz7k2",
+            "tb1qsmvlht2f5ja942jyejf9mqhdq2828kjhaf3qyx",
+            "tb1q9qx9phjfxkzswjhf5qc3q2cx58a0d3vavqa7fu",
+            "tb1qsm5t5ec6kj5ycldxzsrpddny0n8l7y8ll8kcfx",
+            "tb1qgznxl9va7uksephynxdq28xrqefjln5yuj7yzu",
+            "tb1qsdl73sx8wr7h3ee0v6cxvxyyjqjjey89ljuyhv",
+            "tb1qczy6jxej2qagvzwpdtnyzhj0sxyqxy0fdxrufm",
+            "tb1qcegz3lkxuwk2f7xpgjpld5s38tf4fdhlvlvrmm"
+        ],
+        "receiving": [
+            "tb1q9jh9uzhaauenmpqwhxmwrj7449lvveekfta5kq",
+            "tb1qgkwn6lvkcad0u857gsaqjugdlladzew8z64f5g",
+            "tb1qnwxvapverw8ne4trl9957ktcq0lmvhntd37w7y",
+            "tb1qj5sr0fuvc4437k9xu2w243d2cqdga07w44cwc0",
+            "tb1qxyt4u22t9ht3hcuhs2584x33j9rph946n33key",
+            "tb1qsmykk6mm6x574hrydue9tprse6lvsyqs4uxpa6",
+            "tb1qas9vpp2h7kpcyetdgeheaj6n9m5qsxztcna2xh",
+            "tb1qej2j2zwc9grkr5lja77sstcngccr9dvp5rxt0j",
+            "tb1q2zg6ljw0r0rfw4njrcjd48dzc9a86p8hgljlwj",
+            "tb1qrmdwn3txhag9ad4x2degay9lnp778nm4lyqxrd",
+            "tb1q5mhhpkzt9n6twl05q7gdr278mayl4gsdqv4ff5",
+            "tb1qpv6g49qlye5kdj8pckqyzgg956a0l22j37kxlk",
+            "tb1qd7xhtw6ennkrg3ys0tmll3wjt5v9h7llpqvgcs",
+            "tb1q9fcfp4xc62eaz40qxfynczkd2wwgprktgmcudf",
+            "tb1q8qgdz86w3yjt9rlea5yydk8gp3sl3caju2xr0n",
+            "tb1qefafzcq8mp7h4w6keeh6yzdfqz00k9anlsnsgm",
+            "tb1qc9lrygeurs39xdgt5zepcgf9k8fuc09jjxaq4y",
+            "tb1qlj8rmuhpfg4xkftg0zjghnlzdzeq4trmrfmf6u",
+            "tb1q4jefgulpwpxtx25tkfxypwzj5qjm94t694ad5z",
+            "tb1q9upnsjxd7qcmzj0h825plwhdya4fl6gr45mdu9",
+            "tb1qkm2f7392g3mz34vcvtr4prkfqw3rpsc73ajjv6",
+            "tb1qcrx5gx5vytle4syse3kvx7rr3p4qw6dgh82stj"
+        ]
+    },
+    "fiat_value": {},
+    "frozen_coins": {},
+    "invoices": {},
+    "keystore": {
+        "derivation": "m/84'/1'/0'",
+        "hw_type": "trezor",
+        "label": "citadel",
+        "root_fingerprint": "7633218e",
+        "soft_device_id": "F3CFC15194D3033AE0D1BCCA",
+        "type": "hardware",
+        "xpub": "vpub5YMBGy6B5LkHSJdFGNfnGE3spXDSPKay9yXju7V5YDu8Kc6Mopm9XdBNVBefotaUsbE5g9iKGJ3jBaMFEDGFi1U21CdnmeouJgwPfyzEYCj"
+    },
+    "labels": {},
+    "payment_requests": {},
+    "prevouts_by_scripthash": {
+        "00d99b16edad8719f7a391161ee74c84e116ff498f05280b45f258da36dc5878": [
+            [
+                "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c:1",
+                100000
+            ]
+        ],
+        "159831b1ef4d54b57b9facb26de0ebe6d0cf54514079cdd484c0820f514c232f": [
+            [
+                "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e:0",
+                100000
+            ]
+        ],
+        "9870e63757af196092f3a409e2c73c872e59a00fcbffde7b087baa2639fd1570": [
+            [
+                "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c:0",
+                18587817
+            ]
+        ],
+        "f093f18f4c88e8a543a26ae055b61ba858a332ac7a958e5283f05de8e3211df3": [
+            [
+                "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e:1",
+                5718908
+            ]
+        ]
+    },
+    "qt-console-history": [],
+    "seed_version": 41,
+    "spent_outpoints": {
+        "789dd1956ae8b7b0ac895bf776d8234fd9705e544e7440b43b0d6beaa709698b": {
+            "0": "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c"
+        },
+        "dbde0ed97faa4857de15c52b634587d539821413b008ffabe5387277dcd1dd21": {
+            "0": "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e"
+        }
+    },
+    "stored_height": 2138287,
+    "transactions": {
+        "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c": "020000000001018b6909a7ea6b0d3bb440744e545e70d94f23d876f75b89acb0b7e86a95d19d780000000000feffffff02a9a01b010000000016001458bb2fbb77850bc9ac83a60c759a51a4a5a1091aa0860100000000001600142cae5e0afdef333d840eb9b6e1cbd5a97ec6673602473044022040a4913e6deb629f142e124f7d328858064e418841598844fa9a5a69a78804d302203b2ce857a69cfef895ee84ba80b4acdc7f24975e61ab835f2bb743a2304b9aff012102072b2d81a786399c8041cf749d1f7fc7c5668476b1727e7ba5fa58d91f7ffa06a6a02000",
+        "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e": "0200000000010121ddd1dc777238e5abff08b013148239d58745632bc515de5748aa7fd90ededb0000000000feffffff02a086010000000000160014459d3d7d96c75afe1e9e443a09710dfffad165c77c435700000000001600144567e78437684c9c3c01b9bfa28902f381887d36024730440220392961defacc1428318ab463542418c4189bb9e0cbc32423228e5b82d3d1134f02207b311788b6bf155c7b7fb0e36acd6cd0d5628860bf79e1f9407494effcac3e7a012103e7ed231710fc5f0f4949c604b8c0dfd193fe515bc70d40bf34c8c89e67658394aca02000"
+    },
+    "tx_fees": {
+        "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c": [
+            null,
+            false,
+            1
+        ],
+        "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e": [
+            null,
+            false,
+            1
+        ]
+    },
+    "txi": {},
+    "txo": {
+        "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c": {
+            "tb1q9jh9uzhaauenmpqwhxmwrj7449lvveekfta5kq": {
+                "1": [
+                    100000,
+                    false
+                ]
+            }
+        },
+        "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e": {
+            "tb1qgkwn6lvkcad0u857gsaqjugdlladzew8z64f5g": {
+                "0": [
+                    100000,
+                    false
+                ]
+            }
+        }
+    },
+    "use_encryption": false,
+    "verified_tx3": {
+        "22dd98d6299959afe23259fe021707964fa9e73ea151aadb933a7b81c7adce9c": [
+            2138279,
+            1643635839,
+            94,
+            "00000000f3e1b9294dc650ec7e9db2e687ea4e9fefb0792d3f2ee192a7c464f2"
+        ],
+        "cdf1929708fdbd411a903fa036dd0020ce0014b0f2b1085bbc31c93a754c348e": [
+            2138285,
+            1643641753,
+            54,
+            "00000000f5ee636b483669c0c35f9a247a5349253ac525d8a8bd03a993d8d42e"
+        ]
+    },
+    "wallet_type": "standard",
+    "winpos-qt": [
+        960,
+        98,
+        840,
+        400
+    ]
+}

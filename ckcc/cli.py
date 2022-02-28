@@ -50,10 +50,19 @@ sys.excepthook=my_hook
 
 
 @contextlib.contextmanager
-def get_device():
-    device = ColdcardDevice(sn=force_serial, encrypt=not force_plaintext)
+def get_device(optional=False):
+    # Open connection to Coldcard as a context with auto-close
+    try:
+        device = ColdcardDevice(sn=force_serial, encrypt=not force_plaintext)
+    except KeyError:
+        if not optional:
+            raise
+        device = None
+
     yield device
-    device.close()
+
+    if device:
+        device.close()
 
 
 # Options we want for all commands
@@ -1006,79 +1015,90 @@ keystore_keys = ["derivation", "hw_type", "label", "root_fingerprint", "soft_dev
 @main.command('convert2cc')
 @click.argument('file', type=click.Path(exists=True), required=True)
 @click.option('--outfile', '-o', type=click.Path(),
-              help="output file path where adjusted wallet file is written. "
+                help="output file path where adjusted wallet file is written. "
                    "If this is not specified output is written to <original_file>_cc")
-@click.option('--dry-run', '-n', default=False, is_flag=True, help="do not write files instead pretty print to console")
+@click.option('--dry-run', '-n', default=False, is_flag=True,
+                help="do not write files instead pretty print to console")
 @click.option('--key', '-k', type=click.Choice(keystore_keys),
-              help="Multisig wallet keystore dict key based on which to match correct keystore "
-                   "(for example hw_type or root_fingerprint). Option required for multisig wallets if coldcard not connected")
-@click.option('--val', '-v', type=str, help="Multisig wallet value to match for specified key "
-                                            "(for example ledger[hw_type] or fffffff0[root_fingerprint])"
-                                            "Option required for multisig wallets if coldcard not connected")
+                help="Multisig wallet keystore dict key based on which to match correct keystore "
+                     "(for example hw_type or root_fingerprint). Option required for "
+                     "multisig wallets if coldcard not connected")
+@click.option('--val', '-v', type=str,
+                help="Multisig wallet value to match for specified key "
+                     "(for example ledger[hw_type] or fffffff0[root_fingerprint])"
+                     "Option required for multisig wallets if coldcard not connected")
 def electrum_convert2cc(file, outfile, dry_run, key, val):
     """
-    Convert electrum wallet file to coldcard.
+    Convert existing Electrum wallet file into COLDCARD wallet file.
 
-    Adjusts electrum wallet file to work with Coldcard. Under the hood this command changes
-    values in keystore dict in electrum wallet file. 'hw_type' is changed to coldcard. 'soft_device_id' is set to null.
-    'ckcc_xpub' is added (if coldcard is connected). And 'label' is built using 'Coldcard' + master fingerprint.
+    Your Coldcard does not need to be connected, but it is better
+    to have it connected because it can be checked whether Coldcard
+    and wallet file describe the same wallet.
 
-    Your Coldcard does not need to be connected, but it is better to have it connected because it can be checked whether
-    Coldcard and wallet file describe the same wallet.
+    Under the hood this command changes values in keystore dict in
+    electrum wallet file. 'hw_type' is changed to coldcard.
+    'soft_device_id' is set to null.  'ckcc_xpub' is added (if
+    coldcard is connected).  And 'label' is built using 'Coldcard'
+    + master fingerprint.
 
-    If no '--outfile/-o' is specified, new wallet file will be created in same location with '_cc' suffix.
+    If no '--outfile/-o' is specified, new wallet file will be
+    created in same location with '_cc' suffix.
 
-    To convert2cc multisig wallet file, specify --key/--val that define the search for correct keystore.
-    For example if one has 2of3 multisig (ledger, trezor, colcdard) and wants to coldardify trezor:
-       ckcc convert2cc /file/path/to/your/multisig_wallet --key hw_type --val trezor
-    You do not need to define --key/--val if your coldcard is connected (loaded with correct seed and derivation path
-    of course). This will try to auto match correct keystore based on root_fingerprint key obtained from connected
-    coldcard.
+    To convert2cc multisig wallet file, specify --key/--val that
+    defines the correct keystore (ie. specific co-signer).  For
+    example if one has 2of3 multisig (Ledger, Trezor, Colcdard) and
+    wants to convert the Trezor signer:
+
+       ckcc convert2cc /path/to/multisig_wallet --key hw_type --val trezor
+
+    You do not need to define --key/--val if your coldcard is
+    connected (loaded with correct seed and derivation path of
+    course). We wil match correct keystore based on root fingerprint
+    (XFP) obtained from connected Coldcard.
 
 
     Rationale:
-      Users may want to switch their hardware wallet vendor. Yet they want to keep all of their electrum data
-      (labels, contacts, payment requests...). Another possibility is when someone's hww gets lost or broken,
-      and they still have a seed, this seed can be loaded to new Coldcard (check https://coldcard.com/docs/import)
-      and their previous electrum wallet can be coldcardified.
 
-    * Does not work with encrypted wallet files - please decrypt first via electrum interface.
+      Users may want to switch their hardware wallet vendor. Yet
+      they want to keep all of their Electrum data (UTXO, labels,
+      contacts, payment requests...). Another possibility is when
+      someone's hww gets lost or broken, and they still have a seed,
+      this seed can be loaded to new Coldcard (check
+      https://coldcard.com/docs/import) and their previous Electrum
+      wallet can be converted.
+
+    * Does not work with encrypted wallet files - please decrypt first
+      via Electrum interface.
     """
     if file == outfile:
         click.echo("'FILE' and '--outfile' cannot be the same")
         sys.exit(1)
-    try:
-        # this may be changed to context manager once https://github.com/Coldcard/ckcc-protocol/pull/14 gets merged
-        dev = get_device()
-    except KeyError:
-        dev = None
 
-    try:
-        # open file only for reading and close it immediately after it is loaded into memory
-        with open(file, "r") as f:
-            wallet_str = f.read()
-        new_wallet_str = convert2cc(wallet_str=wallet_str, dev=dev, key=key, val=val)
-    except json.JSONDecodeError as e:
-        click.echo("Failed to load wallet file {}".format(e))
-        sys.exit(1)
-    except Exception as e:
-        click.echo("convert2cc failed: {}".format(e))
-        sys.exit(1)
+    with get_device(optional=True) as dev:
 
-    if dry_run:
-        click.echo(new_wallet_str)
-    else:
-        if outfile is None:
-            outfile = filepath_append_cc(file)
         try:
-            with open(outfile, "w") as f:
-                f.write(new_wallet_str)
-                click.echo("New wallet file created: {}".format(outfile))
+            # open file only for reading and close it immediately after it is loaded into memory
+            with open(file, "r") as f:
+                wallet_str = f.read()
+            new_wallet_str = convert2cc(wallet_str=wallet_str, dev=dev, key=key, val=val)
+        except json.JSONDecodeError as e:
+            click.echo("Failed to load wallet file {}".format(e))
+            sys.exit(1)
         except Exception as e:
-            click.echo("Failed to dump wallet file: {}".format(e))
+            click.echo("convert2cc failed: {}".format(e))
             sys.exit(1)
 
-    if dev:
-        dev.close()
+        if dry_run:
+            click.echo(new_wallet_str)
+        else:
+            if outfile is None:
+                outfile = filepath_append_cc(file)
+            try:
+                with open(outfile, "w") as f:
+                    f.write(new_wallet_str)
+                    click.echo("New wallet file created: {}".format(outfile))
+            except Exception as e:
+                click.echo("Failed to dump wallet file: {}".format(e))
+                sys.exit(1)
 
 # EOF

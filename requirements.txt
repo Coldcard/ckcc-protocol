@@ -8,5 +8,5 @@ hidapi>=0.7.99.post21
 click>=6.7
 
 # required by link-layer encryption in client.py
-ecdsa>=0.13
+ecdsa>=0.17
 pyaes

@@ -11,7 +11,7 @@ from setuptools import setup
 
 requirements = [
     'hidapi>=0.7.99.post21',
-    'ecdsa>=0.13',
+    'ecdsa>=0.17',
     'pyaes',
 ]
 

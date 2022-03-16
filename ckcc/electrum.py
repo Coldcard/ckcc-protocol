@@ -102,7 +102,7 @@ def cc_adjust_hww_keystore(keystore: dict, dev: ColdcardDevice = None) -> dict:
         label = "Coldcard {}".format(xfp)
         new_keystore["label"] = label
         # 5. ckcc xpub (master xpub)
-        master_ext_pubkey = dev.send_recv(CCProtocolPacker.get_xpub("m"), timeout=None)
+        master_ext_pubkey = dev.master_xpub
         new_keystore["ckcc_xpub"] = master_ext_pubkey
     return new_keystore
 

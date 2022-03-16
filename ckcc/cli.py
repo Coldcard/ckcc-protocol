@@ -20,6 +20,8 @@ from base64 import b64encode
 from functools import wraps
 from base64 import b64decode, b64encode
 
+from ecdsa import VerifyingKey, SECP256k1
+
 from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
 from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN
@@ -28,7 +30,7 @@ from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub, get_pubkey_string
 from ckcc.electrum import filepath_append_cc, convert2cc
 
 global force_serial
@@ -321,19 +323,11 @@ def get_pubkey(subpath):
 
     Dump 33-byte (compressed, SEC encoded) public key value.
     """
-    try:
-        from pycoin.key.BIP32Node import BIP32Node
-    except Exception:
-        click.echo("pycoin must be installed, not found.", err=True)
-        sys.exit(1)
-
     with get_device() as dev:
-
         xpub = dev.send_recv(CCProtocolPacker.get_xpub(subpath), timeout=None)
-
-        node = BIP32Node.from_hwif(xpub)
-
-        click.echo(b2a_hex(node.sec()))
+        pubkey, _ = decode_xpub(xpub)
+        vk = VerifyingKey.from_string(get_pubkey_string(pubkey), curve=SECP256k1)
+        click.echo(b2a_hex(vk.to_string("compressed")))
 
 
 @main.command('xfp')

@@ -324,7 +324,8 @@ def get_pubkey(subpath):
     try:
         from pycoin.key.BIP32Node import BIP32Node
     except Exception:
-        raise click.Abort("pycoin must be installed, not found.")
+        click.echo("pycoin must be installed, not found.", err=True)
+        sys.exit(1)
 
     with get_device() as dev:
 

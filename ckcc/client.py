@@ -12,6 +12,7 @@
 import hid, sys, os
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
+from .constants import USB_NCRY_V1, USB_NCRY_V2
 from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MSG_LEN, MAX_BLK_LEN
 from .utils import decode_xpub, get_pubkey_string
 
@@ -23,7 +24,7 @@ CKCC_PID     = 0xcc10
 CKCC_SIMULATOR_PATH = '/tmp/ckcc-simulator.sock'
 
 class ColdcardDevice:
-    def __init__(self, sn=None, dev=None, encrypt=True):
+    def __init__(self, sn=None, dev=None, encrypt=True, ncry_ver=USB_NCRY_V1):
         # Establish connection via USB (HID) or Unix Pipe
         self.is_simulator = False
 
@@ -57,6 +58,7 @@ class ColdcardDevice:
         self.serial = found
 
         # they will be defined after we've established a shared secret w/ device
+        self.ncry_ver = ncry_ver
         self.session_key = None
         self.encrypt_request = None
         self.decrypt_response = None
@@ -66,7 +68,7 @@ class ColdcardDevice:
         self.resync()
 
         if encrypt:
-            self.start_encryption()
+            self.start_encryption(version=self.ncry_ver)
 
     def close(self):
         # close underlying HID device
@@ -100,9 +102,13 @@ class ColdcardDevice:
         # first byte of each 64-byte packet encodes length or packet-offset
         assert 4 <= len(msg) <= MAX_MSG_LEN, "msg length: %d" % len(msg)
 
-        if not self.encrypt_request:
+        if self.encrypt_request is None:
             # disable encryption if not already enabled for this connection
             encrypt = False
+
+        if self.encrypt_request and self.ncry_ver == USB_NCRY_V2:
+            # ncry version 2 - everything needs to be encrypted
+            encrypt = True
 
         if encrypt:
             msg = self.encrypt_request(msg)
@@ -223,7 +229,7 @@ class ColdcardDevice:
         self.encrypt_request = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).encrypt
         self.decrypt_response = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).decrypt
 
-    def start_encryption(self):
+    def start_encryption(self, version=USB_NCRY_V1):
         # setup encryption on the link
         # - pick our own key pair, IV for AES
         # - send IV and pubkey to device
@@ -232,9 +238,11 @@ class ColdcardDevice:
 
         pubkey = self.ec_setup()
 
-        msg = CCProtocolPacker.encrypt_start(pubkey)
+        msg = CCProtocolPacker.encrypt_start(pubkey, version=version)
 
         his_pubkey, fingerprint, xpub = self.send_recv(msg, encrypt=False)
+
+        self.ncry_ver = version
 
         self.session_key = self.ec_mult(his_pubkey)
 

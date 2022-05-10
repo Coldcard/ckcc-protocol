@@ -68,7 +68,11 @@ class CCProtocolPacker:
         return b'back'
 
     @staticmethod
-    def encrypt_start(device_pubkey, version=0x1):
+    def encrypt_start(device_pubkey, version=USB_NCRY_V1):
+        supported_versions = [USB_NCRY_V1, USB_NCRY_V2]
+        if version not in supported_versions:
+            raise ValueError("Unsupported USB encryption version. "
+                             "Supported versions: %s" % (supported_versions))
         assert len(device_pubkey) == 64, "want uncompressed 64-byte pubkey, no prefix byte"
         return pack('<4sI64s', b'ncry', version, device_pubkey)
 

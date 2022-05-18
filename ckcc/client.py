@@ -340,15 +340,19 @@ class UnixSimulatorPipe:
             self.close()
             raise RuntimeError("Cannot connect to simulator. Is it running?")
 
-        instance = 0
-        while instance < 10:
+        last_err = None
+        for instance in range(5):
             pn = '/tmp/ckcc-client-%d-%d.sock' % (os.getpid(), instance)
             try:
                 self.pipe.bind(pn)     # just needs any name
                 break
-            except OSError:
-                instance += 1
+            except OSError as err:
+                last_err = err
+                if os.path.exists(pn):
+                    os.remove(pn)
                 continue
+        else:
+            raise last_err  # raise whatever was raised last in the loop
 
         self.pipe_name = pn
         atexit.register(self.close)

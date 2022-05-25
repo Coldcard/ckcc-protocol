@@ -7,6 +7,22 @@ try:
 except ImportError:
     const = int
 
+# USB encryption versions (default USB_NCRY_V1)
+#
+# This introduces a new ncry version to close a potential attack vector:
+#
+# A malicious program may re-initialize the connection encryption by sending the ncry command a second time during USB operation.
+# This may prove particularly harmful in HSM mode.
+#
+# Sending version USB_NCRY_V2 changes the behavior in two ways:
+#   * All future commands must be encrypted
+#   * Returns an error if the ncry command is sent again for the duration of the power cycle
+#
+# USB_NCRY_V2 is most suitable for HSM mode as in case of any communication issue or simply by closing `ColdcardDevice`
+# Coldcard will need to reboot to recover USB operation if USB_NCRY_V2.
+USB_NCRY_V1 = const(0x01)
+USB_NCRY_V2 = const(0x02)
+
 # For upload/download this is the max size of the data block.
 MAX_BLK_LEN = const(2048)
 

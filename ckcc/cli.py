@@ -588,7 +588,7 @@ def start_backup(outdir, outfile, verbose=False):
 @main.command('addr')
 @click.argument('path', default=BIP44_FIRST, metavar='[m/1/2/3]', required=False)
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
-@click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2wpkh)')
+@click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2sh-p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
 @click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show (or first arg)')
 def show_address(path, quiet=False, segwit=False, wrap=False):
@@ -635,8 +635,8 @@ def str_to_int_path(xfp, path):
 @main.command('p2sh')
 @click.argument('script', type=str, nargs=1, required=True)
 @click.argument('fingerprints', type=str, nargs=-1, required=True)
-@click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
-@click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2wpkh)')
+@click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wsh, bech32)')
+@click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2sh-p2wsh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
 def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
     """

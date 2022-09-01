@@ -30,7 +30,7 @@ from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub, get_pubkey_string
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub, get_pubkey_string, descriptor_template
 from ckcc.electrum import filepath_append_cc, convert2cc
 
 global force_serial
@@ -727,7 +727,10 @@ def bip39_passphrase(passphrase, verbose=False):
 @click.option('--verbose', '-v', is_flag=True, help='Show file uploaded')
 @click.option('--path', '-p', default="m/45'", help="Derivation for key (default: BIP45 = m/45')")
 @click.option('--add', '-a', 'just_add', is_flag=True, help='Just show line required to add this Coldcard')
-def enroll_xpub(name, min_signers, path,  num_signers, output_file=None, verbose=False, just_add=False):
+@click.option('--desc', '-d', 'descriptor', is_flag=True, help='Use BIP380 descriptor template')
+@click.option('--format', type=click.Choice(["p2sh", "p2sh-p2wsh", "p2wsh"]), help='Address format')
+def enroll_xpub(name, min_signers, path,  num_signers, output_file=None, verbose=False, just_add=False,
+                descriptor=False, format="p2wsh"):
     """
     Create a skeleton file which defines a multisig wallet.
     When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.
@@ -737,7 +740,8 @@ def enroll_xpub(name, min_signers, path,  num_signers, output_file=None, verbose
 
         xfp = dev.master_fingerprint
         my_xpub = dev.send_recv(CCProtocolPacker.get_xpub(path), timeout=None)
-        new_line = "%s: %s" % (xfp2str(xfp), my_xpub)
+        xfp_str = xfp2str(xfp)
+        new_line = "%s: %s" % (xfp_str, my_xpub)
 
         if just_add:
             click.echo(new_line)
@@ -763,14 +767,23 @@ def enroll_xpub(name, min_signers, path,  num_signers, output_file=None, verbose
             click.echo("Name must be between 1 and 20 characters of ASCII.")
             sys.exit(1)
 
-        # render into a template
-        config = f'name: {name}\npolicy: {min_signers} of {N}\n\n#path: {path}\n{new_line}\n'
-        if num_signers != 1:
-            config += '\n'.join(f'#{i+2}# FINGERPRINT: xpub123123123123123' for i in range(num_signers-1))
-            config += '\n'
+        if descriptor:
+            if format == "p2sh":
+                fmt = AF_P2SH
+            elif format == "p2sh-p2wsh":
+                fmt = AF_P2WSH_P2SH
+            else:
+                fmt = AF_P2WSH
+            config = descriptor_template(xfp=xfp_str, xpub=my_xpub, path=path, fmt=fmt, m=min_signers)
+        else:
+            # render into a template
+            config = f'name: {name}\npolicy: {min_signers} of {N}\nformat: {format.upper()}\n\n#path: {path}\n{new_line}\n'
+            if num_signers != 1:
+                config += '\n'.join(f'#{i+2}# FINGERPRINT: xpub123123123123123' for i in range(num_signers-1))
+                config += '\n'
 
         if verbose or not output_file:
-            click.echo(config[:-1])
+            click.echo(config[:-1] if config[-1] == "\n" else config)
 
         if output_file:
             output_file.write(config)

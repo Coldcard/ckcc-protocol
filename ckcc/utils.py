@@ -1,9 +1,12 @@
 # (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
 #
-import os
+
 import struct
 import binascii
 from collections import namedtuple
+from typing import Optional
+
+from ckcc.constants import AF_P2WSH, AF_P2WSH_P2SH, AF_P2SH
 
 
 B2A = lambda x: binascii.b2a_hex(x).decode('ascii')
@@ -117,5 +120,21 @@ def calc_local_pincode(psbt_sha, next_local_code):
     num = struct.unpack('>I', digest[-4:])[0] & 0x7fffffff
 
     return '%06d' % (num % 1000000)
+
+
+def descriptor_template(xfp: str, xpub: str, path: str, fmt: int, m: int = None) -> Optional[str]:
+    if m is None:
+        m = "M"
+    key_exp = "[%s%s]%s/0/*" % (xfp.lower(), path.replace("m", ''), xpub)
+    if fmt == AF_P2SH:
+        descriptor_template = "sh(sortedmulti(%s,%s,...))"
+    elif fmt == AF_P2WSH_P2SH:
+        descriptor_template = "sh(wsh(sortedmulti(%s,%s,...)))"
+    elif fmt == AF_P2WSH:
+        descriptor_template = "wsh(sortedmulti(%s,%s,...))"
+    else:
+        return None
+    res = descriptor_template % (m, key_exp)
+    return res
 
 # EOF

@@ -43,6 +43,11 @@ MAX_UPLOAD_LEN_MK4 = const(2*MAX_TXN_LEN_MK4)
 # Max length of text messages for signing
 MSG_SIGNING_MAX_LENGTH = const(240)
 
+# Bitcoin limitation: max number of signatures in P2SH redeem script (non-segwit)
+# - 520 byte redeem script limit <= 15*34 bytes per pubkey == 510 bytes
+# - serializations of M/N in redeem scripts assume this range
+MAX_SIGNERS = const(15)
+
 # Types of user auth we support
 USER_AUTH_TOTP = const(1)       # RFC6238
 USER_AUTH_HOTP = const(2)       # RFC4226

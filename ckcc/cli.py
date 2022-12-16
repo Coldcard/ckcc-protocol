@@ -24,7 +24,7 @@ from ecdsa import VerifyingKey, SECP256k1
 
 from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
 from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
-from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN
+from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN, MAX_SIGNERS
 from ckcc.constants import USER_AUTH_HMAC, USER_AUTH_TOTP, USER_AUTH_HOTP, USER_AUTH_SHOW_QR
 from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
@@ -660,7 +660,7 @@ def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
         script = a2b_hex(script)
         N = len(fingerprints)
 
-        assert 1 <= N <= 15, "bad N"
+        assert 1 <= N <= MAX_SIGNERS, "bad N"
 
         min_signers = script[0] - 80
         assert 1 <= min_signers <= N, "bad M"

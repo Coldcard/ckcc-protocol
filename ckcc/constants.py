@@ -72,6 +72,7 @@ AFC_SEGWIT      = const(0x02)       # requires a witness to spend
 AFC_BECH32      = const(0x04)       # just how we're encoding it?
 AFC_SCRIPT      = const(0x08)       # paying into a script
 AFC_WRAPPED     = const(0x10)       # for transition/compat types for segwit vs. old
+AFC_BECH32M     = const(0x16)       # no difference between script/key path in taproot
 
 # Numeric codes for specific address types
 AF_CLASSIC      = AFC_PUBKEY          # 1addr
@@ -80,11 +81,13 @@ AF_P2WPKH       = AFC_PUBKEY  | AFC_SEGWIT | AFC_BECH32     # bc1qsdklfj
 AF_P2WSH        = AFC_SCRIPT  | AFC_SEGWIT | AFC_BECH32     # segwit multisig
 AF_P2WPKH_P2SH  = AFC_WRAPPED | AFC_PUBKEY | AFC_SEGWIT     # looks classic P2SH, but p2wpkh inside
 AF_P2WSH_P2SH   = AFC_WRAPPED | AFC_SCRIPT | AFC_SEGWIT     # looks classic P2SH, segwit multisig
+AF_P2TR         = AFC_PUBKEY  | AFC_SEGWIT | AFC_BECH32M    # bc1p
 
 SUPPORTED_ADDR_FORMATS = frozenset([
     AF_CLASSIC,
     AF_P2SH,
     AF_P2WPKH,
+    AF_P2TR,
     AF_P2WSH,
     AF_P2WPKH_P2SH,
     AF_P2WSH_P2SH,
@@ -92,21 +95,32 @@ SUPPORTED_ADDR_FORMATS = frozenset([
 
 # BIP-174 aka PSBT defined values
 #
-PSBT_GLOBAL_UNSIGNED_TX     = const(0)
-PSBT_GLOBAL_XPUB            = const(1)
+PSBT_GLOBAL_UNSIGNED_TX       = const(0)
+PSBT_GLOBAL_XPUB              = const(1)
 
-PSBT_IN_NON_WITNESS_UTXO    = const(0)
-PSBT_IN_WITNESS_UTXO        = const(1)
-PSBT_IN_PARTIAL_SIG         = const(2)
-PSBT_IN_SIGHASH_TYPE        = const(3)
-PSBT_IN_REDEEM_SCRIPT       = const(4)
-PSBT_IN_WITNESS_SCRIPT      = const(5)
-PSBT_IN_BIP32_DERIVATION    = const(6)
-PSBT_IN_FINAL_SCRIPTSIG     = const(7)
-PSBT_IN_FINAL_SCRIPTWITNESS = const(8)
+PSBT_IN_NON_WITNESS_UTXO      = const(0)
+PSBT_IN_WITNESS_UTXO          = const(1)
+PSBT_IN_PARTIAL_SIG           = const(2)
+PSBT_IN_SIGHASH_TYPE          = const(3)
+PSBT_IN_REDEEM_SCRIPT         = const(4)
+PSBT_IN_WITNESS_SCRIPT        = const(5)
+PSBT_IN_BIP32_DERIVATION      = const(6)
+PSBT_IN_FINAL_SCRIPTSIG       = const(7)
+PSBT_IN_FINAL_SCRIPTWITNESS   = const(8)
+# BIP-371
+PSBT_IN_TAP_KEY_SIG           = const(19)  # 0x13
+PSBT_IN_TAP_SCRIPT_SIG        = const(20)  # 0x14
+PSBT_IN_TAP_LEAF_SCRIPT       = const(21)  # 0x15
+PSBT_IN_TAP_BIP32_DERIVATION  = const(22)  # 0x16
+PSBT_IN_TAP_INTERNAL_KEY      = const(23)  # 0x17
+PSBT_IN_TAP_MERKLE_ROOT       = const(24)  # 0x18
 
-PSBT_OUT_REDEEM_SCRIPT      = const(0)
-PSBT_OUT_WITNESS_SCRIPT     = const(1)
-PSBT_OUT_BIP32_DERIVATION   = const(2)
+PSBT_OUT_REDEEM_SCRIPT        = const(0)
+PSBT_OUT_WITNESS_SCRIPT       = const(1)
+PSBT_OUT_BIP32_DERIVATION     = const(2)
+# BIP-371
+PSBT_OUT_TAP_INTERNAL_KEY     = const(5)
+PSBT_OUT_TAP_TREE             = const(6)
+PSBT_OUT_TAP_BIP32_DERIVATION = const(7)
 
 # EOF

@@ -394,7 +394,7 @@ def run_eval(stmt):
 @click.option('--verbose', '-v', is_flag=True, help='Include fancy ascii armour')
 @click.option('--just-sig', '-j', is_flag=True, help='Just the signature itself, nothing more')
 @click.option('--segwit', '-s', is_flag=True, help='Address in segwit native (p2wpkh, bech32)')
-@click.option('--wrap', '-w', is_flag=True, help='Address in segwit wrapped in P2SH (p2wpkh)')
+@click.option('--wrap', '-w', is_flag=True, help='Address in segwit wrapped in P2SH (p2sh-p2wpkh)')
 def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit=False):
     """Sign a short text message"""
     with get_device() as dev:

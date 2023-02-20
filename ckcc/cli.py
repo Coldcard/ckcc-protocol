@@ -16,7 +16,6 @@ import hid, click, sys, os, pdb, struct, time, io, re, json, contextlib
 from pprint import pformat
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
-from base64 import b64encode
 from functools import wraps
 from base64 import b64decode, b64encode
 
@@ -27,7 +26,7 @@ from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN, MAX_SIGNERS
 from ckcc.constants import USER_AUTH_HMAC, USER_AUTH_TOTP, USER_AUTH_HOTP, USER_AUTH_SHOW_QR
 from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH
-from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED
+from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED, RFC_SIGNATURE_TEMPLATE
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub, get_pubkey_string, descriptor_template
@@ -440,9 +439,8 @@ def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit
         if just_sig:
             click.echo(str(sig))
         elif verbose:
-            click.echo('-----BEGIN SIGNED MESSAGE-----\n{msg}\n-----BEGIN '
-                      'SIGNATURE-----\n{addr}\n{sig}\n-----END SIGNED MESSAGE-----'.format(
-                            msg=message.decode('ascii'), addr=addr, sig=sig))
+            click.echo(RFC_SIGNATURE_TEMPLATE.format(msg=message.decode('ascii'),
+                                                     addr=addr, sig=sig))
         else:
             click.echo('%s\n%s\n%s' % (message.decode('ascii'), addr, sig))
 

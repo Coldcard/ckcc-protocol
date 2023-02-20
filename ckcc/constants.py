@@ -123,4 +123,13 @@ PSBT_OUT_TAP_INTERNAL_KEY     = const(5)
 PSBT_OUT_TAP_TREE             = const(6)
 PSBT_OUT_TAP_BIP32_DERIVATION = const(7)
 
+RFC_SIGNATURE_TEMPLATE = '''\
+-----BEGIN BITCOIN SIGNED MESSAGE-----
+{msg}
+-----BEGIN BITCOIN SIGNATURE-----
+{addr}
+{sig}
+-----END BITCOIN SIGNATURE-----
+'''
+
 # EOF

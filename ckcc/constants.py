@@ -100,33 +100,58 @@ SUPPORTED_ADDR_FORMATS = frozenset([
 
 # BIP-174 aka PSBT defined values
 #
-PSBT_GLOBAL_UNSIGNED_TX       = const(0)
-PSBT_GLOBAL_XPUB              = const(1)
+# GLOBAL ===
+PSBT_GLOBAL_UNSIGNED_TX 	     = const(0x00)
+PSBT_GLOBAL_XPUB        	     = const(0x01)
+PSBT_GLOBAL_VERSION              = const(0xfb)
+PSBT_GLOBAL_PROPRIETARY          = const(0xfc)
+# BIP-370
+PSBT_GLOBAL_TX_VERSION           = const(0x02)
+PSBT_GLOBAL_FALLBACK_LOCKTIME    = const(0x03)
+PSBT_GLOBAL_INPUT_COUNT          = const(0x04)
+PSBT_GLOBAL_OUTPUT_COUNT         = const(0x05)
+PSBT_GLOBAL_TX_MODIFIABLE        = const(0x06)
 
-PSBT_IN_NON_WITNESS_UTXO      = const(0)
-PSBT_IN_WITNESS_UTXO          = const(1)
-PSBT_IN_PARTIAL_SIG           = const(2)
-PSBT_IN_SIGHASH_TYPE          = const(3)
-PSBT_IN_REDEEM_SCRIPT         = const(4)
-PSBT_IN_WITNESS_SCRIPT        = const(5)
-PSBT_IN_BIP32_DERIVATION      = const(6)
-PSBT_IN_FINAL_SCRIPTSIG       = const(7)
-PSBT_IN_FINAL_SCRIPTWITNESS   = const(8)
+# INPUTS ===
+PSBT_IN_NON_WITNESS_UTXO 	     = const(0x00)
+PSBT_IN_WITNESS_UTXO 	         = const(0x01)
+PSBT_IN_PARTIAL_SIG 	         = const(0x02)
+PSBT_IN_SIGHASH_TYPE 	         = const(0x03)
+PSBT_IN_REDEEM_SCRIPT 	         = const(0x04)
+PSBT_IN_WITNESS_SCRIPT 	         = const(0x05)
+PSBT_IN_BIP32_DERIVATION 	     = const(0x06)
+PSBT_IN_FINAL_SCRIPTSIG 	     = const(0x07)
+PSBT_IN_FINAL_SCRIPTWITNESS      = const(0x08)
+PSBT_IN_POR_COMMITMENT           = const(0x09)
+PSBT_IN_RIPEMD160                = const(0x0a)
+PSBT_IN_SHA256                   = const(0x0b)
+PSBT_IN_HASH160                  = const(0x0c)
+PSBT_IN_HASH256                  = const(0x0d)
+# BIP-370
+PSBT_IN_PREVIOUS_TXID            = const(0x0e)
+PSBT_IN_OUTPUT_INDEX             = const(0x0f)
+PSBT_IN_SEQUENCE                 = const(0x10)
+PSBT_IN_REQUIRED_TIME_LOCKTIME   = const(0x11)
+PSBT_IN_REQUIRED_HEIGHT_LOCKTIME = const(0x12)
 # BIP-371
-PSBT_IN_TAP_KEY_SIG           = const(19)  # 0x13
-PSBT_IN_TAP_SCRIPT_SIG        = const(20)  # 0x14
-PSBT_IN_TAP_LEAF_SCRIPT       = const(21)  # 0x15
-PSBT_IN_TAP_BIP32_DERIVATION  = const(22)  # 0x16
-PSBT_IN_TAP_INTERNAL_KEY      = const(23)  # 0x17
-PSBT_IN_TAP_MERKLE_ROOT       = const(24)  # 0x18
+PSBT_IN_TAP_KEY_SIG              = const(0x13)
+PSBT_IN_TAP_SCRIPT_SIG           = const(0x14)
+PSBT_IN_TAP_LEAF_SCRIPT          = const(0x15)
+PSBT_IN_TAP_BIP32_DERIVATION     = const(0x16)
+PSBT_IN_TAP_INTERNAL_KEY         = const(0x17)
+PSBT_IN_TAP_MERKLE_ROOT          = const(0x18)
 
-PSBT_OUT_REDEEM_SCRIPT        = const(0)
-PSBT_OUT_WITNESS_SCRIPT       = const(1)
-PSBT_OUT_BIP32_DERIVATION     = const(2)
+# OUTPUTS ===
+PSBT_OUT_REDEEM_SCRIPT 	         = const(0x00)
+PSBT_OUT_WITNESS_SCRIPT 	     = const(0x01)
+PSBT_OUT_BIP32_DERIVATION 	     = const(0x02)
+# BIP-370
+PSBT_OUT_AMOUNT                  = const(0x03)
+PSBT_OUT_SCRIPT                  = const(0x04)
 # BIP-371
-PSBT_OUT_TAP_INTERNAL_KEY     = const(5)
-PSBT_OUT_TAP_TREE             = const(6)
-PSBT_OUT_TAP_BIP32_DERIVATION = const(7)
+PSBT_OUT_TAP_INTERNAL_KEY        = const(0x05)
+PSBT_OUT_TAP_TREE                = const(0x06)
+PSBT_OUT_TAP_BIP32_DERIVATION    = const(0x07)
 
 RFC_SIGNATURE_TEMPLATE = '''\
 -----BEGIN BITCOIN SIGNED MESSAGE-----

@@ -47,6 +47,8 @@ MSG_SIGNING_MAX_LENGTH = const(240)
 # - 520 byte redeem script limit <= 15*34 bytes per pubkey == 510 bytes
 # - serializations of M/N in redeem scripts assume this range
 MAX_SIGNERS = const(15)
+# taproot artificial multisig limit
+MAX_TR_SIGNERS = const(32)
 
 # Types of user auth we support
 USER_AUTH_TOTP = const(1)       # RFC6238

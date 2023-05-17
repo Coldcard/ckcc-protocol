@@ -50,6 +50,9 @@ MAX_SIGNERS = const(15)
 # taproot artificial multisig limit
 MAX_TR_SIGNERS = const(32)
 
+TAPROOT_LEAF_MASK = 0xfe
+TAPROOT_LEAF_TAPSCRIPT = 0xc0
+
 # Types of user auth we support
 USER_AUTH_TOTP = const(1)       # RFC6238
 USER_AUTH_HOTP = const(2)       # RFC4226

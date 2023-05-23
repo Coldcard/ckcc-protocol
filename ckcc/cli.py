@@ -25,11 +25,12 @@ from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
 from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
 from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN, MAX_SIGNERS
 from ckcc.constants import USER_AUTH_HMAC, USER_AUTH_TOTP, USER_AUTH_HOTP, USER_AUTH_SHOW_QR
-from ckcc.constants import AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH
+from ckcc.constants import AF_P2SH, AF_P2WSH, AF_P2WSH_P2SH
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED, RFC_SIGNATURE_TEMPLATE
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
-from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub, get_pubkey_string, descriptor_template
+from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub
+from ckcc.utils import get_pubkey_string, descriptor_template, addr_fmt_help
 from ckcc.electrum import filepath_append_cc, convert2cc
 
 global force_serial
@@ -396,8 +397,7 @@ def run_eval(stmt):
 
 @main.command('msg')
 @click.argument('message')
-@click.option('--path', '-p', default=BIP44_FIRST, 
-        help=f'Derivation for key to use [default: {BIP44_FIRST}]', metavar="DERIVATION")
+@click.option('--path', '-p', default=None, help=f'Derivation for key to use', metavar="DERIVATION")
 @click.option('--verbose', '-v', is_flag=True, help='Include fancy ascii armour')
 @click.option('--just-sig', '-j', is_flag=True, help='Just the signature itself, nothing more')
 @click.option('--segwit', '-s', is_flag=True, help='Address in segwit native (p2wpkh, bech32)')
@@ -406,12 +406,7 @@ def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit
     """Sign a short text message"""
     with get_device() as dev:
 
-        if wrap:
-            addr_fmt = AF_P2WPKH_P2SH
-        elif segwit:
-            addr_fmt = AF_P2WPKH
-        else:
-            addr_fmt = AF_CLASSIC
+        addr_fmt, af_path = addr_fmt_help(dev, wrap, segwit)
 
         # NOTE: initial version of firmware not expected to do segwit stuff right, since
         # standard very much still in flux, see: <https://github.com/bitcoin/bitcoin/issues/10542>
@@ -419,7 +414,7 @@ def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit
         # not enforcing policy here on msg contents, so we can define that on product
         message = message.encode('ascii') if not isinstance(message, bytes) else message
 
-        ok = dev.send_recv(CCProtocolPacker.sign_message(message, path, addr_fmt), timeout=None)
+        ok = dev.send_recv(CCProtocolPacker.sign_message(message, path or af_path, addr_fmt), timeout=None)
         assert ok == None
 
         print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
@@ -592,22 +587,16 @@ def start_backup(outdir, outfile, verbose=False):
 
 
 @main.command('addr')
-@click.argument('path', default=BIP44_FIRST, metavar='[m/1/2/3]', required=False)
+@click.argument('path', default=None, metavar='[m/1/2/3]', required=False)
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wpkh, bech32)')
+@click.option('--taproot', '-t', is_flag=True, help='Show in taproot (p2tr, bech32m)')
 @click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2sh-p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-@click.option('--path', '-p', default=BIP44_FIRST, help='Derivation for key to show (or first arg)')
-def show_address(path, quiet=False, segwit=False, wrap=False):
+def show_address(path, quiet=False, segwit=False, wrap=False, taproot=False):
     """Show the human version of an address"""
     with get_device() as dev:
-        if wrap:
-            addr_fmt = AF_P2WPKH_P2SH
-        elif segwit:
-            addr_fmt = AF_P2WPKH
-        else:
-            addr_fmt = AF_CLASSIC
-
-        addr = dev.send_recv(CCProtocolPacker.show_address(path, addr_fmt), timeout=None)
+        addr_fmt, af_path = addr_fmt_help(dev, wrap, segwit, taproot)
+        addr = dev.send_recv(CCProtocolPacker.show_address(path or af_path, addr_fmt), timeout=None)
 
         if quiet:
             click.echo(addr)

@@ -7,6 +7,7 @@ from collections import namedtuple
 from typing import Optional
 
 from ckcc.constants import AF_P2WSH, AF_P2WSH_P2SH, AF_P2SH
+from ckcc.constants import AF_P2WPKH, AF_P2TR, AF_CLASSIC, AF_P2WPKH_P2SH
 
 
 B2A = lambda x: binascii.b2a_hex(x).decode('ascii')
@@ -136,5 +137,26 @@ def descriptor_template(xfp: str, xpub: str, path: str, fmt: int, m: int = None)
         return None
     res = descriptor_template % (m, key_exp)
     return res
+
+
+def addr_fmt_help(dev, wrap=False, segwit=False, taproot=False):
+    chain = 0
+    if dev.master_xpub and dev.master_xpub[0] == "t":
+        # testnet
+        chain = 1
+    if wrap:
+        addr_fmt = AF_P2WPKH_P2SH
+        af_path = f"m/49h/{chain}h/0h/0/0"
+    elif segwit:
+        addr_fmt = AF_P2WPKH
+        af_path = f"m/84h/{chain}h/0h/0/0"
+    elif taproot:
+        addr_fmt = AF_P2TR
+        af_path = f"m/86h/{chain}h/0h/0/0"
+    else:
+        addr_fmt = AF_CLASSIC
+        af_path = f"m/44h/{chain}h/0h/0/0"
+
+    return addr_fmt, af_path
 
 # EOF

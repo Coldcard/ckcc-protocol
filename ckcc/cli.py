@@ -277,8 +277,14 @@ def real_file_upload(fd, dev, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=T
             type=click.IntRange(256, MAX_BLK_LEN), help='Block size to use (testing)')
 @click.option('--multisig', '-m', default=False, is_flag=True,
                                     help='Attempt multisig enroll using file')
-def file_upload(filename, blksize, multisig=False):
+@click.option('--miniscript', default=False, is_flag=True,
+                                    help='Attempt miniscript enroll using file')
+def file_upload(filename, blksize, multisig=False, miniscript=False):
     """Send file to Coldcard (PSBT transaction or firmware)"""
+
+    if multisig and miniscript:
+        click.echo("Failed: Only one can be specified from miniscript/multisig")
+        sys.exit(1)
 
     # NOTE: mostly for debug/dev usage.
     with get_device() as dev:
@@ -287,6 +293,8 @@ def file_upload(filename, blksize, multisig=False):
 
         if multisig:
             dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
+        elif miniscript:
+            dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha))
 
 
 @main.command('upgrade')

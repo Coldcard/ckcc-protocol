@@ -126,6 +126,12 @@ class CCProtocolPacker:
         return pack('<4sI32s', b'enrl', length, file_sha)
 
     @staticmethod
+    def miniscript_enroll(length, file_sha):
+        # miniscript details must already be uploaded as a text file, this starts approval process.
+        assert len(file_sha) == 32
+        return pack('<4sI32s', b'mins', length, file_sha)
+
+    @staticmethod
     def multisig_check(M, N, xfp_xor):
         # do we have a wallet already that matches M+N and xor(*xfps)?
         return pack('<4s3I', b'msck', M, N, xfp_xor)

@@ -35,4 +35,4 @@ To build to release for Pypi:
 - `python3 setup.py sdist bdist_wheel`
 - maybe delete old version from `./dist`
 - tag source code with new version (at this point)
-- `twine upload dist/*` when ready.
+- `twine upload dist/*1.x.y*` when ready, use `__token__` as username, and API token as password

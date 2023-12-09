@@ -52,33 +52,34 @@ Options:
 Commands:
   addr        Show the human version of an address
   auth        Indicate specific user is present (for HSM).
-  backup      Creates 7z encrypted backup file after...
-  bag         Factory: set or read bag number -- single use...
-  chain       Get which blockchain (Bitcoin/Testnet) is...
-  convert2cc  Convert existing Electrum wallet file into...
+  backup      Creates 7z encrypted backup file after prompting user to...
+  bag         Factory: set or read bag number -- single use only!
+  chain       Get which blockchain (Bitcoin/Testnet) is configured.
+  convert2cc  Convert existing Electrum wallet file into COLDCARD wallet...
   debug       Start interactive (local) debug session
   eval        Simulator only: eval a python statement
   exec        Simulator only: exec a python script
-  get-locker  Get the value held in the Storage Locker (not...
+  get-locker  Get the value held in the Storage Locker (not Bitcoin...
   hsm         Get current status of HSM feature.
   hsm-start   Enable Hardware Security Module (HSM) mode.
   list        List all attached Coldcard devices
-  local-conf  Generate the 6-digit code needed for a...
-  logout      Securely logout of device (will require...
+  local-conf  Generate the 6-digit code needed for a specific PSBT file...
+  logout      Securely logout of device (will require replug to start over)
+  miniscript  Miniscript related commands
   msg         Sign a short text message
-  multisig    Create a skeleton file which defines a...
+  multisig    Create a skeleton file which defines a multisig wallet.
   p2sh        Show a multisig payment address on-screen.
   pass        Provide a BIP39 passphrase
-  pubkey      Get the public key for a derivation path Dump...
+  pubkey      Get the public key for a derivation path
   reboot      Reboot coldcard, force relogin and start over
-  sign        Approve a spending transaction by signing it...
+  sign        Approve a spending transaction by signing it on Coldcard
   test        Test USB connection (debug/dev)
-  upgrade     Send firmware file (.dfu) and trigger upgrade...
-  upload      Send file to Coldcard (PSBT transaction or...
-  user        Create a new user on the Coldcard for HSM...
+  upgrade     Send firmware file (.dfu) and trigger upgrade process
+  upload      Send file to Coldcard (PSBT transaction or firmware)
+  user        Create a new user on the Coldcard for HSM policy (also...
   version     Get the version of the firmware installed
-  xfp         Get the fingerprint for this wallet (master...
-  xpub        Get the XPUB for this wallet (master level,...
+  xfp         Get the fingerprint for this wallet (master level)
+  xpub        Get the XPUB for this wallet (master level, or any derivation)
 ```
 
 
@@ -104,6 +105,7 @@ Hello Coldcard
 1KSXaNHh3G4sfTMsp9q8CmACeqsJn46drd
 H4mTuwMUdnu3MyMA+6aJ3hiAF4L0WBDZFseTEno511hNN8/THIeM4GW4SnrcJJhS3WxMZEWFdEIZDSP+H5aIcao=
 ```
+
 
 ## Transaction Signing
 
@@ -139,4 +141,20 @@ Ok! Downloading result (5119 bytes)
 
 ```
 
+## Miniscript
 
+```
+Usage: ckcc miniscript [OPTIONS] COMMAND [ARGS]...
+
+  Miniscript related commands
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  addr    Get miniscript internal/external chain address by index with on...
+  del     Delete registered miniscript wallet by name with on device...
+  enroll  Enroll miniscript wallet
+  get     Get registered miniscript wallet by name.
+  ls      List registered miniscript wallet names.
+```

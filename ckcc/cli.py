@@ -12,7 +12,7 @@
 # - see <https://github.com/trezor/cython-hidapi/blob/master/hid.pyx> for HID api 
 #
 #
-import hid, click, sys, os, pdb, struct, time, io, re, json, contextlib
+import hid, click, sys, os, pdb, struct, time, io, re, json, contextlib, tempfile
 from pprint import pformat
 from binascii import b2a_hex, a2b_hex
 from hashlib import sha256
@@ -834,6 +834,99 @@ def hsm_status():
 
         click.echo(pformat(o))
 
+@click.group()
+def miniscript():
+    """Miniscript related commands"""
+    pass
+
+
+@miniscript.command('enroll')
+@click.argument('desc', type=str, metavar="DESCRIPTOR",
+                required=True)
+@click.option('--blksize', default=MAX_BLK_LEN,
+              type=click.IntRange(256, MAX_BLK_LEN),
+              help='Block size to use (testing)')
+def miniscript_enroll(desc, blksize):
+    """
+    Enroll miniscript wallet from string.
+    Descriptor can be JSON wrapped.
+    """
+    with tempfile.NamedTemporaryFile("wb+") as tmp:
+        tmp.write(desc.encode())
+        tmp.seek(0)
+        with get_device() as dev:
+            file_len, sha = real_file_upload(tmp, dev, blksize=blksize)
+            dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha))
+
+
+@miniscript.command('ls')
+def miniscript_ls():
+    """
+    List registered miniscript wallet names.
+    """
+    with get_device() as dev:
+        dev.check_mitm()
+
+        resp = dev.send_recv(CCProtocolPacker.miniscript_ls())
+        o = json.loads(resp)
+
+        click.echo(pformat(o))
+
+
+@miniscript.command('del')
+@click.argument('name', type=str,
+                metavar="Miniscript wallet name",
+                required=True)
+def miniscript_del(name):
+    """
+    Delete registered miniscript wallet by name with
+    on device confirmation.
+    """
+    with get_device() as dev:
+        dev.check_mitm()
+
+        dev.send_recv(CCProtocolPacker.miniscript_delete(name))
+
+
+@miniscript.command('get')
+@click.argument('name', type=str,
+                metavar="Miniscript wallet name",
+                required=True)
+def miniscript_get(name):
+    """
+    Get registered miniscript wallet by name.
+    """
+    with get_device() as dev:
+        dev.check_mitm()
+
+        resp = dev.send_recv(CCProtocolPacker.miniscript_get(name))
+        o = json.loads(resp)
+
+        click.echo(pformat(o))
+
+
+@miniscript.command('addr')
+@click.argument('name', type=str,
+                metavar="Miniscript wallet name",
+                required=True)
+@click.argument('index',
+                type=click.IntRange(min=0, max=(2**31)-1),
+                metavar="Address index", required=True)
+@click.option('--change', is_flag=True, default=False,
+              help='Use internal chain.')
+def miniscript_address(name, change, index):
+    """
+    Get miniscript internal/external chain address by index
+    with on device verification.
+    """
+    with get_device() as dev:
+        dev.check_mitm()
+
+        resp = dev.send_recv(
+            CCProtocolPacker.miniscript_address(name, change, index)
+        )
+        click.echo(resp)
+
 
 @main.command('user')
 @click.argument('username', type=str, metavar="USERNAME", required=True)
@@ -1103,5 +1196,8 @@ def electrum_convert2cc(file, outfile, dry_run, key, val):
             except Exception as e:
                 click.echo("Failed to dump wallet file: {}".format(e))
                 sys.exit(1)
+
+
+main.add_command(miniscript)
 
 # EOF

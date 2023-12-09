@@ -126,6 +126,30 @@ class CCProtocolPacker:
         return pack('<4sI32s', b'enrl', length, file_sha)
 
     @staticmethod
+    def miniscript_ls():
+        # list registered miniscript wallet names
+        return b'msls'
+
+    @staticmethod
+    def miniscript_delete(name):
+        # delete registered miniscript wallet by name
+        assert 2 <= len(name) <= 40, "name len"
+        return b'msdl' + name.encode('ascii')
+
+    @staticmethod
+    def miniscript_get(name):
+        # get registered miniscript wallet object by name
+        assert 2 <= len(name) <= 40, "name len"
+        return b'msgt' + name.encode('ascii')
+
+    @staticmethod
+    def miniscript_address(name, change=False, idx=0):
+        # get miniscript address from internal or external chain by id
+        assert 2 <= len(name) <= 40, "name len"
+        assert 0 <= idx < (2**31), "child idx"
+        return pack('<4sII', b'msas', int(change), idx) + name.encode('ascii')
+
+    @staticmethod
     def miniscript_enroll(length, file_sha):
         # miniscript details must already be uploaded as a text file, this starts approval process.
         assert len(file_sha) == 32

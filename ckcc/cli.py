@@ -295,7 +295,7 @@ def file_upload(filename, blksize, multisig=False, miniscript=False):
         if multisig:
             dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
         elif miniscript:
-            dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha))
+            dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha), timeout=None)
 
 
 @main.command('upgrade')
@@ -856,7 +856,7 @@ def miniscript_enroll(desc, blksize):
         tmp.seek(0)
         with get_device() as dev:
             file_len, sha = real_file_upload(tmp, dev, blksize=blksize)
-            dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha))
+            dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha), timeout=None)
 
 
 @miniscript.command('ls')

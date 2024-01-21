@@ -875,7 +875,7 @@ def miniscript_ls():
 
 @miniscript.command('del')
 @click.argument('name', type=str,
-                metavar="Miniscript wallet name",
+                metavar="MINISCRIPT_WALLET_NAME",
                 required=True)
 def miniscript_del(name):
     """
@@ -890,7 +890,7 @@ def miniscript_del(name):
 
 @miniscript.command('get')
 @click.argument('name', type=str,
-                metavar="Miniscript wallet name",
+                metavar="MINISCRIPT_WALLET_NAME",
                 required=True)
 def miniscript_get(name):
     """
@@ -907,11 +907,11 @@ def miniscript_get(name):
 
 @miniscript.command('addr')
 @click.argument('name', type=str,
-                metavar="Miniscript wallet name",
+                metavar="MINISCRIPT_WALLET_NAME",
                 required=True)
 @click.argument('index',
                 type=click.IntRange(min=0, max=(2**31)-1),
-                metavar="Address index", required=True)
+                metavar="ADDR_IDX", required=True)
 @click.option('--change', is_flag=True, default=False,
               help='Use internal chain.')
 def miniscript_address(name, change, index):

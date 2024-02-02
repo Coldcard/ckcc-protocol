@@ -50,8 +50,8 @@ MK_1_OK = 0x01
 MK_2_OK = 0x02
 MK_3_OK = 0x04
 MK_4_OK = 0x08
+MK_Q1_OK = 0x10
 # RFU:
-MK_5_OK = 0x10
 MK_6_OK = 0x20
 
 # EOF

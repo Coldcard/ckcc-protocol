@@ -259,52 +259,62 @@ class CCProtocolUnpacker:
     # - given full rx message to work from
     # - this is done after un-framing
 
-    @classmethod
-    def decode(cls, msg):
+    @staticmethod
+    def decode(msg):
         assert len(msg) >= 4
         sign = str(msg[0:4], 'utf8', 'ignore')
 
-        d = getattr(cls, sign, cls)
-        if d is cls:
+        d = getattr(CCProtocolUnpacker, sign, None)
+        if d is None:
             raise CCFramingError('Unknown response signature: ' + repr(sign))
 
         return d(msg)
-        
 
     # struct info for each response
-    
+
+    @staticmethod
     def okay(msg):
         # trivial response, w/ no content
         assert len(msg) == 4
         return None
 
     # low-level errors
+    @staticmethod
     def fram(msg):
-        raise CCFramingError("Framing Error", str(msg[4:], 'utf8'))
+        raise CCFramingError("Framing Error: " + str(msg[4:], 'utf8'))
+
+    @staticmethod
     def err_(msg):
         raise CCProtoError("Coldcard Error: " + str(msg[4:], 'utf8', 'ignore'), msg[4:])
 
+    @staticmethod
     def refu(msg):
         # user didn't want to approve something
         raise CCUserRefused()
 
+    @staticmethod
     def busy(msg):
         # user didn't want to approve something
         raise CCBusyError()
 
+    @staticmethod
     def biny(msg):
         # binary string: length implied by msg framing
         return msg[4:]
 
+    @staticmethod
     def int1(msg):
         return unpack_from('<I', msg, 4)[0]
 
+    @staticmethod
     def int2(msg):
         return unpack_from('<2I', msg, 4)
 
+    @staticmethod
     def int3(msg):
         return unpack_from('<3I', msg, 4)
 
+    @staticmethod
     def mypb(msg):
         # response to "ncry" command: 
         # - the (uncompressed) pubkey of the Coldcard
@@ -315,16 +325,19 @@ class CCProtocolUnpacker:
         xpub = msg[-xpub_len:] if xpub_len else b''
         return dev_pubkey, fingerprint, xpub
 
+    @staticmethod
     def asci(msg):
         # hex/base58 string or other for-computers string, which isn't international
         return msg[4:].decode('ascii')
 
+    @staticmethod
     def smrx(msg):
         # message signing result. application specific!
         # returns actual address used (text), and raw binary signature (65 bytes)
         aln = unpack_from('<I', msg, 4)[0]
         return msg[8:aln+8].decode('ascii'), msg[8+aln:]
 
+    @staticmethod
     def strx(msg):
         # txn signing result, or other file operation. application specific!
         # returns length of resulting PSBT and it's sha256

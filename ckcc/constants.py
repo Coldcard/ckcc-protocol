@@ -77,7 +77,7 @@ AFC_SEGWIT      = const(0x02)       # requires a witness to spend
 AFC_BECH32      = const(0x04)       # just how we're encoding it?
 AFC_SCRIPT      = const(0x08)       # paying into a script
 AFC_WRAPPED     = const(0x10)       # for transition/compat types for segwit vs. old
-AFC_BECH32M     = const(0x16)       # no difference between script/key path in taproot
+AFC_BECH32M     = const(0x20)       # no difference between script/key path in taproot
 
 # Numeric codes for specific address types
 AF_CLASSIC      = AFC_PUBKEY          # 1addr

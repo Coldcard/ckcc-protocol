@@ -116,14 +116,15 @@ Usage: ckcc sign [OPTIONS] PSBT_IN [PSBT_OUT]
   Approve a spending transaction by signing it on Coldcard
 
 Options:
-  -v, --verbose    Show more details
-  -f, --finalize   Show final signed transaction, ready for transmission
-  -z, --visualize  Show text of Coldcard's interpretation of the transaction
-                   (does not create transaction, no interaction needed)
-  -s, --signed     Include a signature over visualization text
-  -x, --hex        Write out (signed) PSBT in hexidecimal
-  -6, --base64     Write out (signed) PSBT encoded in base64
-  --help           Show this message and exit.
+  -f, --finalize     Show final signed transaction, ready for transmission
+  -z, --visualize    Show text of Coldcard's interpretation of the transaction
+                     (does not create transaction, no interaction needed)
+  -p, --pushtx TEXT  Broadcast transaction via provided PushTx URL. Requires
+                     --finalize flag. Shortcut options: coldcard, mempool
+  -s, --signed       Include a signature over visualization text
+  -x, --hex          Write out (signed) PSBT in hexidecimal
+  -6, --base64       Write out (signed) PSBT encoded in base64
+  --help             Show this message and exit.
 
 % (... acquire PSBT file for what you want to do ...)
 

@@ -30,7 +30,7 @@ from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED, RFC_SIGNA
 from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub
-from ckcc.utils import get_pubkey_string, descriptor_template, addr_fmt_help
+from ckcc.utils import get_pubkey_string, descriptor_template, addr_fmt_help, txn_to_pushtx_url
 from ckcc.electrum import filepath_append_cc, convert2cc
 
 global force_serial
@@ -481,14 +481,15 @@ def wait_and_download(dev, req, fn):
 @main.command('sign')
 @click.argument('psbt_in', type=click.File('rb'))
 @click.argument('psbt_out', type=click.File('wb'), required=False)
-@click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
 @click.option('--visualize', '-z', is_flag=True, help='Show text of Coldcard\'s interpretation of the transaction (does not create transaction, no interaction needed)')
+@click.option('--pushtx', '-p', default=None, help='Broadcast transaction via provided PushTx URL. Forces --finalize flag. Shortcut options: coldcard, mempool')
 @click.option('--signed', '-s', is_flag=True, help='Include a signature over visualization text')
 @click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
 @click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_mode=False, finalize=False, visualize=False, signed=False):
+def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mode=False,
+                     finalize=False, visualize=False, signed=False):
     """Approve a spending transaction by signing it on Coldcard"""
     with get_device() as dev:
         dev.check_mitm()
@@ -510,6 +511,9 @@ def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_
         # upload the transaction
         txn_len, sha = real_file_upload(psbt_in, dev)
 
+        if pushtx:
+            finalize = True
+
         flags = 0x0
         if visualize or signed:
             flags |= STXN_VISUALIZE
@@ -523,7 +527,7 @@ def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_
         assert ok is None
 
         # errors will raise here, no need for error display
-        result, _ = wait_and_download(dev, CCProtocolPacker.get_signed_txn(), 1)
+        result, sha = wait_and_download(dev, CCProtocolPacker.get_signed_txn(), 1)
 
         # If 'finalize' is set, we are outputing a bitcoin transaction,
         # ready for the p2p network. If the CC wasn't able to finalize it,
@@ -536,6 +540,19 @@ def sign_transaction(psbt_in, psbt_out=None, verbose=False, b64_mode=False, hex_
             else:
                 click.echo(result, nl=False)
         else:
+            if finalize and pushtx:
+                pushtx_url = {
+                    "coldcard": "https://coldcard.com/pushtx#",
+                    "mempool": "https://mempool.space/pushtx#"
+                }.get(pushtx, pushtx)
+                chain = dev.send_recv(CCProtocolPacker.block_chain())
+                try:
+                    url = txn_to_pushtx_url(result, pushtx_url, sha=sha, chain=chain)
+                    click.launch(url)
+                except Exception as e:
+                    click.echo(f"ERROR: {e}", err=True)
+                return
+
             # save it
             if hex_mode:
                 result = b2a_hex(result)

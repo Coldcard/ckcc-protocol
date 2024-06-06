@@ -1,8 +1,7 @@
 # (c) Copyright 2021 by Coinkite Inc. This file is covered by license found in COPYING-CC.
 #
 
-import struct
-import binascii
+import binascii, hashlib, struct, hmac, base64
 from collections import namedtuple
 from typing import Optional
 
@@ -109,14 +108,10 @@ def calc_local_pincode(psbt_sha, next_local_code):
     # - next_local_code comes from the hsm_status response
     # - psbt_sha is sha256() over the binary PSBT you will be submitting
     #
-    from binascii import a2b_base64
-    from hashlib import sha256
-    import struct, hmac
-
-    key = a2b_base64(next_local_code)
+    key = binascii.a2b_base64(next_local_code)
     assert len(key) >= 15
     assert len(psbt_sha) == 32
-    digest = hmac.new(key, psbt_sha, sha256).digest()
+    digest = hmac.new(key, psbt_sha, hashlib.sha256).digest()
 
     num = struct.unpack('>I', digest[-4:])[0] & 0x7fffffff
 
@@ -158,5 +153,29 @@ def addr_fmt_help(dev, wrap=False, segwit=False, taproot=False):
         af_path = f"m/44h/{chain}h/0h/0/0"
 
     return addr_fmt, af_path
+
+
+def b2a_base64url(s):
+    # see <https://datatracker.ietf.org/doc/html/rfc4648#section-5>
+    # '=' still needs to be removed https://docs.python.org/3/library/base64.html#base64.urlsafe_b64encode
+    return base64.urlsafe_b64encode(s).rstrip(b'=\n').decode()
+
+
+def txn_to_pushtx_url(txn, base_url, sha=None, chain="BTC", verify_sha=False):
+    assert ("http://" in base_url) or ("https://" in base_url), "url schema"
+    assert base_url[-1] in "#?&", "Final char must be # or ? or &."
+    url = base_url
+    url += 't=' + b2a_base64url(txn)
+
+    if sha is None:
+        sha = hashlib.sha256(txn).digest()
+    elif verify_sha:
+        assert sha == hashlib.sha256(txn).digest(), "wrong hash"
+
+    url += '&c=' + b2a_base64url(sha[-8:])
+
+    if chain != 'BTC':
+        url += '&n=' + chain  # XTN or XRT
+    return url
 
 # EOF

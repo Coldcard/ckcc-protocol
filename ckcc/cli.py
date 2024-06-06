@@ -483,7 +483,7 @@ def wait_and_download(dev, req, fn):
 @click.argument('psbt_out', type=click.File('wb'), required=False)
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
 @click.option('--visualize', '-z', is_flag=True, help='Show text of Coldcard\'s interpretation of the transaction (does not create transaction, no interaction needed)')
-@click.option('--pushtx', '-p', default=None, help='Broadcast transaction via provided PushTx URL. Forces --finalize flag. Shortcut options: coldcard, mempool')
+@click.option('--pushtx', '-p', default=None, help='Broadcast transaction via provided PushTx URL. Shortcut options: coldcard, mempool', metavar="URL")
 @click.option('--signed', '-s', is_flag=True, help='Include a signature over visualization text')
 @click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
 @click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
@@ -513,6 +513,7 @@ def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mo
 
         if pushtx:
             finalize = True
+            visualize = signed = False
 
         flags = 0x0
         if visualize or signed:
@@ -540,19 +541,6 @@ def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mo
             else:
                 click.echo(result, nl=False)
         else:
-            if finalize and pushtx:
-                pushtx_url = {
-                    "coldcard": "https://coldcard.com/pushtx#",
-                    "mempool": "https://mempool.space/pushtx#"
-                }.get(pushtx, pushtx)
-                chain = dev.send_recv(CCProtocolPacker.block_chain())
-                try:
-                    url = txn_to_pushtx_url(result, pushtx_url, sha=sha, chain=chain)
-                    click.launch(url)
-                except Exception as e:
-                    click.echo(f"ERROR: {e}", err=True)
-                return
-
             # save it
             if hex_mode:
                 result = b2a_hex(result)
@@ -561,8 +549,22 @@ def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mo
 
             if psbt_out:
                 psbt_out.write(result)
-            else:
+            elif not pushtx:
                 click.echo(result)
+
+        if pushtx:
+            pushtx_url = {
+                "coldcard": "https://coldcard.com/pushtx#",
+                "mempool": "https://mempool.space/pushtx#"
+            }.get(pushtx, pushtx)
+
+            chain = dev.send_recv(CCProtocolPacker.block_chain())
+
+            try:
+                url = txn_to_pushtx_url(result, pushtx_url, sha=sha, chain=chain)
+                click.launch(url)
+            except Exception as e:
+                click.echo(f"ERROR: {e}", err=True)
 
 
 @main.command('backup')

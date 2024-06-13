@@ -535,6 +535,22 @@ def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mo
         # an exception would have occured. Most people will want hex here, but
         # resisting the urge to force it.
 
+        if pushtx:
+            pushtx_url = {
+                "coldcard": "https://coldcard.com/pushtx#",
+                "mempool": "https://mempool.space/pushtx#"
+            }.get(pushtx, pushtx)
+
+            chain = dev.send_recv(CCProtocolPacker.block_chain())
+
+            try:
+                url = txn_to_pushtx_url(result, pushtx_url, sha=sha, chain=chain)
+                click.launch(url)
+            except Exception as e:
+                click.echo(f"ERROR: {e}", err=True)
+
+            return  # done here
+
         if visualize:
             if psbt_out:
                 psbt_out.write(result)
@@ -551,20 +567,6 @@ def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mo
                 psbt_out.write(result)
             elif not pushtx:
                 click.echo(result)
-
-        if pushtx:
-            pushtx_url = {
-                "coldcard": "https://coldcard.com/pushtx#",
-                "mempool": "https://mempool.space/pushtx#"
-            }.get(pushtx, pushtx)
-
-            chain = dev.send_recv(CCProtocolPacker.block_chain())
-
-            try:
-                url = txn_to_pushtx_url(result, pushtx_url, sha=sha, chain=chain)
-                click.launch(url)
-            except Exception as e:
-                click.echo(f"ERROR: {e}", err=True)
 
 
 @main.command('backup')

@@ -920,7 +920,8 @@ def miniscript_get(name):
     with get_device() as dev:
         dev.check_mitm()
 
-        resp = dev.send_recv(CCProtocolPacker.miniscript_get(name))
+        resp = dev.send_recv(CCProtocolPacker.miniscript_get(name),
+                             timeout=None)
         o = json.loads(resp)
 
         click.echo(pformat(o))
@@ -944,7 +945,8 @@ def miniscript_address(name, change, index):
         dev.check_mitm()
 
         resp = dev.send_recv(
-            CCProtocolPacker.miniscript_address(name, change, index)
+            CCProtocolPacker.miniscript_address(name, change, index),
+            timeout=None
         )
         click.echo(resp)
 

@@ -162,4 +162,8 @@ RFC_SIGNATURE_TEMPLATE = '''\
 -----END BITCOIN SIGNATURE-----
 '''
 
+# If nLockTime in transaction is equal or greater than below value,
+# it is a unix timestamp (time_t) not block height.
+NLOCK_IS_TIME = const(500000000)
+
 # EOF

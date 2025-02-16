@@ -241,7 +241,7 @@ def real_file_upload(fd, dev, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=T
             if not here: break
             left -= len(here)
             result = dev.send_recv(CCProtocolPacker.upload(pos, sz, here))
-            assert result == pos, "Got back: %r" % result
+            assert result == pos, f"Got back: {result}"
             chk.update(here)
 
     # do a verify

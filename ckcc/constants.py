@@ -36,7 +36,8 @@ MAX_MSG_LEN = const(4+4+4+MAX_BLK_LEN)
 MAX_TXN_LEN = const(1024*1024)
 
 # Max size of any upload (firmware.dfu files in particular)
-MAX_UPLOAD_LEN = const(4*MAX_TXN_LEN)
+# we could do 4xMAX_TXN_LEN
+MAX_UPLOAD_LEN = const(2*MAX_TXN_LEN)
 
 # Max length of text messages for signing
 MSG_SIGNING_MAX_LENGTH = const(240)

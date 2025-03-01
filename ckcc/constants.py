@@ -33,12 +33,10 @@ MAX_MSG_LEN = const(4+4+4+MAX_BLK_LEN)
 # Max PSBT txn we support (384k bytes as PSBT)
 # - the max on the wire for mainnet is 100k
 # - but a PSBT might contain a full txn for each input
-MAX_TXN_LEN = const(384*1024)
-MAX_TXN_LEN_MK4 = const(2*1024*1024)
+MAX_TXN_LEN = const(1024*1024)
 
 # Max size of any upload (firmware.dfu files in particular)
-MAX_UPLOAD_LEN = const(2*MAX_TXN_LEN)
-MAX_UPLOAD_LEN_MK4 = const(2*MAX_TXN_LEN_MK4)
+MAX_UPLOAD_LEN = const(4*MAX_TXN_LEN)
 
 # Max length of text messages for signing
 MSG_SIGNING_MAX_LENGTH = const(240)

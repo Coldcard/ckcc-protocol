@@ -735,18 +735,26 @@ def bip39_passphrase(passphrase, verbose=False):
 
 
 @main.command('multisig')
-@click.option('--min-signers', '-m', type=int, help='Minimum M signers of N required to approve (default: all)', default=0)
-@click.option('--signers', '-n', 'num_signers', type=int, help='N signers in wallet', default=3)
-@click.option('--name', '-l', type=str, help='Wallet name on Coldcard', default='Unnamed')
+@click.option('--min-signers', '-m', type=int, default=0,
+              help='Minimum M signers of N required to approve (default: all)')
+@click.option('--signers', '-n', 'num_signers', type=int, default=3,
+              help='N signers in wallet')
+@click.option('--name', '-l', type=str, default='Unnamed',
+              help='Wallet name on Coldcard')
 @click.option('--output-file', '-f', type=click.File('wt', lazy=True),
-                                help='Save configuration to file')
-@click.option('--verbose', '-v', is_flag=True, help='Show file uploaded')
-@click.option('--path', '-p', default="m/45'", help="Derivation for key (default: BIP45 = m/45')")
-@click.option('--add', '-a', 'just_add', is_flag=True, help='Just show line required to add this Coldcard')
-@click.option('--desc', '-d', 'descriptor', is_flag=True, help='Use BIP380 descriptor template')
-@click.option('--format', type=click.Choice(["p2sh", "p2sh-p2wsh", "p2wsh"]), help='Address format')
-def enroll_xpub(name, min_signers, path,  num_signers, output_file=None, verbose=False, just_add=False,
-                descriptor=False, format="p2wsh"):
+              help='Save configuration to file')
+@click.option('--verbose', '-v', is_flag=True,
+              help='Show file uploaded')
+@click.option('--path', '-p', default="m/45'",
+              help="Derivation for key (default: BIP45 = m/45')")
+@click.option('--add', '-a', 'just_add', is_flag=True,
+              help='Just show line required to add this Coldcard')
+@click.option('--desc', '-d', 'descriptor', is_flag=True,
+              help='Use BIP380 descriptor template')
+@click.option('--format', type=click.Choice(["p2sh", "p2sh-p2wsh", "p2wsh"]),
+              help='Address format', default="p2wsh")
+def enroll_xpub(name, min_signers, path,  num_signers, output_file, verbose,
+                just_add, descriptor, format):
     """
     Create a skeleton file which defines a multisig wallet.
     When completed, use with: "ckcc upload -m wallet.txt" or put on SD card.

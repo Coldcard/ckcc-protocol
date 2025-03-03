@@ -274,13 +274,13 @@ def real_file_upload(fd, dev, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=T
 
 @main.command('upload')
 @click.argument('filename', type=click.File('rb'))
-@click.option('--blksize', default=MAX_BLK_LEN, 
-            type=click.IntRange(256, MAX_BLK_LEN), help='Block size to use (testing)')
-@click.option('--multisig', '-m', default=False, is_flag=True,
-                                    help='Attempt multisig enroll using file')
-@click.option('--miniscript', default=False, is_flag=True,
-                                    help='Attempt miniscript enroll using file')
-def file_upload(filename, blksize, multisig=False, miniscript=False):
+@click.option('--blksize', default=MAX_BLK_LEN, type=click.IntRange(256, MAX_BLK_LEN),
+              help='Block size to use (testing)')
+@click.option('--multisig', '-m', is_flag=True,
+              help='Attempt multisig enroll using file')
+@click.option('--miniscript', is_flag=True,
+              help='Attempt miniscript enroll using file')
+def file_upload(filename, blksize, multisig, miniscript):
     """Send file to Coldcard (PSBT transaction or firmware)"""
 
     if multisig and miniscript:
@@ -310,7 +310,9 @@ def firmware_upgrade(filename, stop_early):
 
 @main.command('xpub')
 @click.argument('subpath', default='m')
-def get_xpub(subpath):
+@click.option('--verbose', '-v', is_flag=True,
+              help='Show extended key with master fingerprint and derivation')
+def get_xpub(subpath, verbose):
     """Get the XPUB for this wallet (master level, or any derivation)"""
 
     with get_device() as dev:
@@ -320,7 +322,12 @@ def get_xpub(subpath):
 
         xpub = dev.send_recv(CCProtocolPacker.get_xpub(subpath), timeout=None)
 
-        click.echo(xpub)
+        if verbose:
+            # return key expression with BIP-32 extended key as defined in BIP-380
+            sp = subpath.replace("m/", "").replace("'", "h")
+            click.echo(f"[{xfp2str(dev.master_fingerprint).lower()}/{sp}]{xpub}")
+        else:
+            click.echo(xpub)
 
 
 @main.command('pubkey')
@@ -402,7 +409,7 @@ def run_eval(stmt):
 @click.option('--just-sig', '-j', is_flag=True, help='Just the signature itself, nothing more')
 @click.option('--segwit', '-s', is_flag=True, help='Address in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Address in segwit wrapped in P2SH (p2sh-p2wpkh)')
-def sign_message(message, path, verbose=True, just_sig=False, wrap=False, segwit=False):
+def sign_message(message, path, verbose, just_sig, wrap, segwit):
     """Sign a short text message"""
     with get_device() as dev:
 
@@ -488,8 +495,7 @@ def wait_and_download(dev, req, fn):
 @click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
 @click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mode=False,
-                     finalize=False, visualize=False, signed=False):
+def sign_transaction(psbt_in, psbt_out, pushtx, b64_mode, hex_mode, finalize, visualize, signed):
     """Approve a spending transaction by signing it on Coldcard"""
     with get_device() as dev:
         dev.check_mitm()
@@ -576,9 +582,8 @@ def sign_transaction(psbt_in, psbt_out=None, pushtx=None, b64_mode=False, hex_mo
 @click.option('--outfile', '-o', metavar="filename.7z",
                         help="Name for backup file", default=None,
                         type=click.File('wb'))
-#@click.option('--verbose', '-v', is_flag=True, help='Show more details')
 @display_errors
-def start_backup(outdir, outfile, verbose=False):
+def start_backup(outdir, outfile):
     """
     Creates 7z encrypted backup file after prompting user to remember a massive passphrase.
     Downloads the AES-encrypted data backup and by default, saves into current directory using
@@ -613,7 +618,7 @@ def start_backup(outdir, outfile, verbose=False):
 @click.option('--taproot', '-t', is_flag=True, help='Show in taproot (p2tr, bech32m)')
 @click.option('--wrap', '-w', is_flag=True, help='Show in segwit wrapped in P2SH (p2sh-p2wpkh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(path, quiet=False, segwit=False, wrap=False, taproot=False):
+def show_address(path, quiet, segwit, wrap, taproot):
     """Show the human version of an address"""
     with get_device() as dev:
         addr_fmt, af_path = addr_fmt_help(dev, wrap, segwit, taproot)
@@ -654,7 +659,7 @@ def str_to_int_path(xfp, path):
 @click.option('--segwit', '-s', is_flag=True, help='Show in segwit native (p2wsh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Show as segwit wrapped in P2SH (p2sh-p2wsh)')
 @click.option('--quiet', '-q', is_flag=True, help='Show less details; just the address')
-def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
+def show_address(script, fingerprints, quiet, segwit, wrap):
     """
     Show a multisig payment address on-screen.
 
@@ -705,7 +710,7 @@ def show_address(script, fingerprints, quiet=False, segwit=False, wrap=False):
 @click.option('--passphrase', prompt=True, hide_input=True,
               confirmation_prompt=False)
 @click.option('--verbose', '-v', is_flag=True, help='Show new root xpub')
-def bip39_passphrase(passphrase, verbose=False):
+def bip39_passphrase(passphrase, verbose):
     """Provide a BIP39 passphrase"""
 
     with get_device() as dev:
@@ -799,6 +804,10 @@ def enroll_xpub(name, min_signers, path,  num_signers, output_file, verbose,
             else:
                 fmt = AF_P2WSH
             config = descriptor_template(xfp=xfp_str, xpub=my_xpub, path=path, fmt=fmt, m=min_signers)
+
+            if name != 'Unnamed':
+                config = json.dumps({"name": name, "desc": config})
+
         else:
             # render into a template
             config = f'name: {name}\npolicy: {min_signers} of {N}\nformat: {format.upper()}\n\n#path: {path}\n{new_line}\n'
@@ -818,7 +827,7 @@ def enroll_xpub(name, min_signers, path,  num_signers, output_file, verbose,
 @main.command('hsm-start')
 @click.argument('policy', type=click.Path(exists=True,dir_okay=False), metavar="policy.json", required=False)
 @click.option('--dry-run', '-n', is_flag=True, help="Just validate file, don't upload")
-def hsm_setup(policy=None, dry_run=False):
+def hsm_setup(policy, dry_run):
     """
     Enable Hardware Security Module (HSM) mode.
 
@@ -1036,7 +1045,7 @@ def new_user(username, totp_create=False, totp_secret=None, text_secret=None, as
 @main.command('local-conf')
 @click.argument('psbt-file', type=click.File('rb'), required=True, metavar="Binary PSBT")
 @click.option('--next', '-n', 'next_code', type=str, help='next_local_code from Coldcard (default: ask it)')
-def user_auth(psbt_file, next_code=None):
+def user_auth(psbt_file, next_code):
     """
     Generate the 6-digit code needed for a specific PSBT file to authorize
     it's signing on the Coldcard in HSM mode.
@@ -1065,7 +1074,7 @@ def user_auth(psbt_file, next_code=None):
 @click.option('--password', '-p', is_flag=True, help="Prompt for password")
 @click.option('--debug', '-d', is_flag=True, help='Show values used')
 @click.option('--version3', '-3', is_flag=True, help='Support obsolete 3.x.x firmware')
-def user_auth(username, token=None, password=None, prompt=None, totp=None, psbt_file=None, debug=False, version3=False):
+def user_auth(username, token, password, psbt_file, debug, version3):
     """
     Indicate specific user is present (for HSM).
 

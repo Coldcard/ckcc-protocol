@@ -27,7 +27,7 @@ from ckcc.constants import MAX_MSG_LEN, MAX_BLK_LEN, MAX_USERNAME_LEN, MAX_SIGNE
 from ckcc.constants import USER_AUTH_HMAC, USER_AUTH_TOTP, USER_AUTH_HOTP, USER_AUTH_SHOW_QR
 from ckcc.constants import AF_P2SH, AF_P2WSH, AF_P2WSH_P2SH
 from ckcc.constants import STXN_FINALIZE, STXN_VISUALIZE, STXN_SIGNED, RFC_SIGNATURE_TEMPLATE
-from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID
+from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID, DEFAULT_SIM_SOCKET
 from ckcc.sigheader import FW_HEADER_SIZE, FW_HEADER_OFFSET, FW_HEADER_MAGIC
 from ckcc.utils import dfu_parse, calc_local_pincode, xfp2str, B2A, decode_xpub
 from ckcc.utils import get_pubkey_string, descriptor_template, addr_fmt_help, txn_to_pushtx_url
@@ -70,19 +70,21 @@ def get_device(optional=False):
 # Options we want for all commands
 @click.group()
 @click.option('--serial', '-s', default=None, metavar="HEX",
-                    help="Operate on specific unit (default: first found)")
+              help="Operate on specific unit (default: first found)")
+@click.option('--socket', '-c', type=click.Path(exists=True,dir_okay=False),
+              metavar="ckcc-simulator-<pid>.sock", required=False, default=None,
+              help="Operate on specific simulator")
 @click.option('--simulator', '-x', default=False, is_flag=True,
-                    help="Connect to the simulator via Unix socket")
+              help="Connect to the simulator via Unix socket")
 @click.option('--plaintext', '-P', default=False, is_flag=True,
-                    help="Disable USB link-layer encryption")
-def main(serial, simulator, plaintext):
+              help="Disable USB link-layer encryption")
+def main(serial, simulator, plaintext, socket):
     global force_serial, force_plaintext
     force_serial = serial
     force_plaintext = plaintext
 
     if simulator:
-        force_serial = '/tmp/ckcc-simulator.sock'
-
+        force_serial = socket or DEFAULT_SIM_SOCKET
 
 def display_errors(f):
     # clean-up display of errors from Coldcard

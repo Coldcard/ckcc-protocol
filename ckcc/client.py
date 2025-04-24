@@ -9,26 +9,26 @@
 #
 #   - ec_mult, ec_setup, aes_setup, mitm_verify
 #
-import hid, sys, os
-from binascii import b2a_hex, a2b_hex
+import hid, os, socket, atexit
+from binascii import b2a_hex
 from hashlib import sha256
 from .constants import USB_NCRY_V1, USB_NCRY_V2
-from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MSG_LEN, MAX_BLK_LEN
+from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MSG_LEN
 from .utils import decode_xpub, get_pubkey_string
 
 # unofficial, unpermissioned... USB numbers
 COINKITE_VID = 0xd13e
 CKCC_PID     = 0xcc10
 
-# Unix domain socket used by the simulator
-CKCC_SIMULATOR_PATH = '/tmp/ckcc-simulator.sock'
+DEFAULT_SIM_SOCKET = "/tmp/ckcc-simulator.sock"
+
 
 class ColdcardDevice:
-    def __init__(self, sn=None, dev=None, encrypt=True, ncry_ver=USB_NCRY_V1):
+    def __init__(self, sn=None, dev=None, encrypt=True, ncry_ver=USB_NCRY_V1, is_simulator=False):
         # Establish connection via USB (HID) or Unix Pipe
-        self.is_simulator = False
+        self.is_simulator = is_simulator
 
-        if not dev and sn and '/' in sn:
+        if not dev and ((sn and ('/' in sn)) or self.is_simulator):
             dev = UnixSimulatorPipe(sn)
             found = 'simulator'
             self.is_simulator = True
@@ -339,18 +339,19 @@ class UnixSimulatorPipe:
     # Use a UNIX pipe to the simulator instead of a real USB connection.
     # - emulates the API of hidapi device object.
 
-    def __init__(self, path):
-        import socket, atexit
+    def __init__(self, socket_path=None):
+        self.socket_path = socket_path or DEFAULT_SIM_SOCKET
         self.pipe = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
-            self.pipe.connect(path)
+            self.pipe.connect(self.socket_path)
         except Exception:
             self.close()
             raise RuntimeError("Cannot connect to simulator. Is it running?")
 
         last_err = None
         for instance in range(5):
-            pn = '/tmp/ckcc-client-%d-%d.sock' % (os.getpid(), instance)
+            # if simulator has PID in socket path, client will have matching, or empty
+            pn = '/tmp/ckcc-client%s-%d-%d.sock' % (self.get_sim_pid(), os.getpid(), instance)
             try:
                 self.pipe.bind(pn)     # just needs any name
                 break
@@ -364,6 +365,12 @@ class UnixSimulatorPipe:
 
         self.pipe_name = pn
         atexit.register(self.close)
+
+    def get_sim_pid(self):
+        # return str PID if any in socket_path
+        if self.socket_path == DEFAULT_SIM_SOCKET:
+            return ""
+        return "-" + self.socket_path.split(".")[0].split("-")[-1]
 
     def read(self, max_count, timeout_ms=None):
         import socket

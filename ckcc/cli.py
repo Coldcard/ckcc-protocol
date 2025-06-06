@@ -83,7 +83,7 @@ def main(serial, simulator, plaintext, socket):
     force_serial = serial
     force_plaintext = plaintext
 
-    if simulator:
+    if simulator or socket:
         force_serial = socket or DEFAULT_SIM_SOCKET
 
 def display_errors(f):

@@ -68,6 +68,26 @@ class CCProtocolPacker:
         return b'back'
 
     @staticmethod
+    def restore_backup(length, file_sha, custom_pwd=False, plaintext=False, tmp=False):
+        # backup file has to be already uploaded
+        #  custom_pwd: (bool) .7z encrypted with custom password
+        #  plaintext:  (bool)  clear-text (dev)
+        #  tmp         (bool)  force load as tmp, effective only on seed-less CC
+        assert len(file_sha) == 32
+        assert not (custom_pwd and plaintext)
+
+        bf = 0
+        if custom_pwd:
+            bf |= 1
+        if plaintext:
+            bf |= 2
+        if tmp:
+            bf |= 4
+
+        return pack('<4sI32sB', b'rest', length, file_sha, bf)
+
+
+    @staticmethod
     def encrypt_start(device_pubkey, version=USB_NCRY_V1):
         supported_versions = [USB_NCRY_V1, USB_NCRY_V2]
         if version not in supported_versions:

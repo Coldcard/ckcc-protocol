@@ -282,11 +282,14 @@ def real_file_upload(fd, dev, blksize=MAX_BLK_LEN, do_upgrade=False, do_reboot=T
               help='Attempt multisig enroll using file')
 @click.option('--miniscript', is_flag=True,
               help='Attempt miniscript enroll using file')
-def file_upload(filename, blksize, multisig, miniscript):
+@click.option('--backup', is_flag=True,
+              help='Upload encrypted backup')
+def file_upload(filename, blksize, multisig, miniscript, backup):
     """Send file to Coldcard (PSBT transaction or firmware)"""
 
-    if multisig and miniscript:
-        click.echo("Failed: Only one can be specified from miniscript/multisig")
+    if sum([multisig, miniscript, backup]) > 1:
+        # only 1 or None can be True
+        click.echo("Failed: Only one can be specified from miniscript/multisig/backup")
         sys.exit(1)
 
     # NOTE: mostly for debug/dev usage.
@@ -298,6 +301,9 @@ def file_upload(filename, blksize, multisig, miniscript):
             dev.send_recv(CCProtocolPacker.multisig_enroll(file_len, sha))
         elif miniscript:
             dev.send_recv(CCProtocolPacker.miniscript_enroll(file_len, sha), timeout=None)
+        elif backup:
+            dev.send_recv(CCProtocolPacker.restore_backup(file_len, sha), timeout=None)
+
 
 
 @main.command('upgrade')
@@ -612,6 +618,38 @@ def start_backup(outdir, outfile):
             open(fn, 'wb').write(result)
 
         click.echo("Wrote %d bytes into: %s\nSHA256: %s" % (len(result), fn, str(b2a_hex(chk), 'ascii')))
+
+
+@main.command('restore')
+@click.argument('filename', type=click.File('rb'), metavar="backup.7z")
+@click.option('-c', '--plaintext', is_flag=True,
+              help="Force plaintext restore. No need to use if file has proper '.txt' suffix")
+@click.option('-p', '--password', is_flag=True,
+              help="This backup has custom password. Not words.")
+@click.option('-t', '--tmp', is_flag=True,
+              help="Force restoring backup as temporary seed. Only works for seedless Coldcard.")
+@display_errors
+def restore_backup(filename, plaintext, password, tmp):
+    """
+    Uploads 7z encrypted backup file & starts backup restore process. User needs to specify
+    what kind of backup is being uploaded. Default is 7z encrypted file with word-based password.
+    Use -p/--password flag if your backup has custom not word-based password.
+    User is prompted to enter backup password on the device.
+    """
+
+    if not plaintext and filename.name.lower().endswith(".txt"):
+        plaintext = True
+
+    if plaintext and password:
+        # only 1 or None can be True
+        click.echo("Failed: Plaintext backup cannot have custom password.")
+        sys.exit(1)
+
+    with get_device() as dev:
+        file_len, sha = real_file_upload(filename, dev)
+        dev.send_recv(
+            CCProtocolPacker.restore_backup(file_len, sha, password, plaintext, tmp),
+            timeout=None)
 
 
 @main.command('addr')

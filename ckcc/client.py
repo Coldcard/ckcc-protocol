@@ -335,7 +335,7 @@ class ColdcardDevice:
         return pbkdf2_hmac('sha256' if v3 else 'sha512', text_password, salt, PBKDF2_ITER_COUNT)[:32]
 
     def firmware_version(self):
-        return self.send_recv(CCProtocolPacker.version()).split("\n")[1]
+        return self.send_recv(CCProtocolPacker.version()).split("\n")
 
     def is_edge(self):
         # returns True if device is running EDGE firmware version
@@ -344,7 +344,7 @@ class ColdcardDevice:
             rv = self.send_recv(b'EXEC' + cmd.encode('utf-8'), timeout=60000, encrypt=False)
             return rv == b"1"
 
-        return self.firmware_version()[-1] == "X"
+        return self.firmware_version()[1][-1] == "X"
 
 
 class UnixSimulatorPipe:

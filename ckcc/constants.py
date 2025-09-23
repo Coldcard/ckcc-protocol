@@ -80,6 +80,7 @@ AFC_WRAPPED     = const(0x10)       # for transition/compat types for segwit vs.
 AFC_BECH32M     = const(0x20)       # no difference between script/key path in taproot
 
 # Numeric codes for specific address types
+AF_BARE_PK      = const(0x00)         # p2pk bare public key address
 AF_CLASSIC      = AFC_PUBKEY          # 1addr
 AF_P2SH         = AFC_SCRIPT          # classic multisig / simple P2SH / 3hash
 AF_P2WPKH       = AFC_PUBKEY  | AFC_SEGWIT | AFC_BECH32     # bc1qsdklfj

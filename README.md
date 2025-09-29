@@ -1,8 +1,10 @@
 # Coldcard CLI and Python Interface Library
 
-Coldcard is a Cheap, Ultra-secure & Opensource Hardware Wallet for #Bitcoin.
+Coldcard is an affordable, ultra-secure and open-source hardware
+wallet for Bitcoin. Built for hardcore Bitcoin users who demand
+maximum security.
 
-Get yours at [ColdcardWallet.com](http://coldcard.com)
+Learn more and get yours at: [Coldcard.com](http://coldcard.com)
 
 This is the python code and command-line utilities you need to communicate with it over USB.
 
@@ -44,10 +46,13 @@ pip install --editable '.[cli]'
 Usage: ckcc [OPTIONS] COMMAND [ARGS]...
 
 Options:
-  -s, --serial HEX  Operate on specific unit (default: first found)
-  -x, --simulator   Connect to the simulator via Unix socket
-  -P, --plaintext   Disable USB link-layer encryption
-  --help            Show this message and exit.
+  -s, --serial HEX                Operate on specific unit (default: first
+                                  found)
+  -c, --socket ckcc-simulator-<pid>.sock
+                                  Operate on specific simulator
+  -x, --simulator                 Connect to the simulator via Unix socket
+  -P, --plaintext                 Disable USB link-layer encryption
+  --help                          Show this message and exit.
 
 Commands:
   addr        Show the human version of an address
@@ -72,6 +77,7 @@ Commands:
   pass        Provide a BIP39 passphrase
   pubkey      Get the public key for a derivation path
   reboot      Reboot coldcard, force relogin and start over
+  restore     Uploads 7z encrypted backup file & starts backup restore...
   sign        Approve a spending transaction by signing it on Coldcard
   test        Test USB connection (debug/dev)
   upgrade     Send firmware file (.dfu) and trigger upgrade process
@@ -145,6 +151,7 @@ Ok! Downloading result (5119 bytes)
 ## Miniscript
 
 ```
+% ckcc miniscript --help
 Usage: ckcc miniscript [OPTIONS] COMMAND [ARGS]...
 
   Miniscript related commands
@@ -163,6 +170,7 @@ Commands:
 ## Backup/Restore
 
 ```
+% ckcc backup --help
 Usage: ckcc backup [OPTIONS]
 
   Creates 7z encrypted backup file after prompting user to remember a massive
@@ -176,6 +184,7 @@ Options:
 ```
 
 ```
+% ckcc restore --help
 Usage: ckcc restore [OPTIONS] backup.7z
 
   Uploads 7z encrypted backup file & starts backup restore process. User needs

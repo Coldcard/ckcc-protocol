@@ -112,11 +112,14 @@ class CCProtocolPacker:
         return b'sha2'
 
     @staticmethod
-    def sign_transaction(length, file_sha, finalize=False, flags=0x0):
+    def sign_transaction(length, file_sha, finalize=False, flags=0x0, miniscript_name=None):
         # must have already uploaded binary, and give expected sha256
         assert len(file_sha) == 32
         flags |= (STXN_FINALIZE if finalize else 0x00)
-        return pack('<4sII32s', b'stxn', length, int(flags), file_sha)
+        rv = pack('<4sII32s', b'stxn', length, int(flags), file_sha)
+        if miniscript_name:
+            rv += miniscript_name.encode()
+        return rv
 
     @staticmethod
     def sign_message(raw_msg, subpath='m', addr_fmt=AF_CLASSIC):
@@ -161,6 +164,12 @@ class CCProtocolPacker:
         # get registered miniscript wallet object by name
         assert 2 <= len(name) <= 40, "name len"
         return b'msgt' + name.encode('ascii')
+
+    @staticmethod
+    def miniscript_policy(name):
+        # get BIP-388 policy of registered miniscript wallet object by name
+        assert 2 <= len(name) <= 40, "name len"
+        return b'mspl' + name.encode('ascii')
 
     @staticmethod
     def miniscript_address(name, change=False, idx=0):

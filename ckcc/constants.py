@@ -48,7 +48,7 @@ MSG_SIGNING_MAX_LENGTH = const(240)
 # - serializations of M/N in redeem scripts assume this range
 MAX_SIGNERS = const(15)
 # taproot artificial multisig limit
-MAX_TR_SIGNERS = const(32)
+MAX_TR_SIGNERS = const(34)
 
 TAPROOT_LEAF_MASK = 0xfe
 TAPROOT_LEAF_TAPSCRIPT = 0xc0

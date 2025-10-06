@@ -499,11 +499,12 @@ def wait_and_download(dev, req, fn):
 @click.option('--finalize', '-f', is_flag=True, help='Show final signed transaction, ready for transmission')
 @click.option('--visualize', '-z', is_flag=True, help='Show text of Coldcard\'s interpretation of the transaction (does not create transaction, no interaction needed)')
 @click.option('--pushtx', '-p', default=None, help='Broadcast transaction via provided PushTx URL. Shortcut options: coldcard, mempool', metavar="URL")
+@click.option('--miniscript', '-m', default=None, help='Miniscript wallet name')
 @click.option('--signed', '-s', is_flag=True, help='Include a signature over visualization text')
 @click.option('--hex', '-x', 'hex_mode', is_flag=True, help="Write out (signed) PSBT in hexidecimal")
 @click.option('--base64', '-6', 'b64_mode', is_flag=True, help="Write out (signed) PSBT encoded in base64")
 @display_errors
-def sign_transaction(psbt_in, psbt_out, pushtx, b64_mode, hex_mode, finalize, visualize, signed):
+def sign_transaction(psbt_in, psbt_out, pushtx, b64_mode, hex_mode, finalize, visualize, signed, miniscript):
     """Approve a spending transaction by signing it on Coldcard"""
     with get_device() as dev:
         dev.check_mitm()
@@ -538,7 +539,8 @@ def sign_transaction(psbt_in, psbt_out, pushtx, b64_mode, hex_mode, finalize, vi
             flags |= STXN_FINALIZE
 
         # start the signing process
-        ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, flags=flags), timeout=None)
+        ok = dev.send_recv(CCProtocolPacker.sign_transaction(txn_len, sha, flags=flags,
+                                                             miniscript_name=miniscript), timeout=None)
         assert ok is None
 
         # errors will raise here, no need for error display

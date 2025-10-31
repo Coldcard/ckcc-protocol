@@ -986,6 +986,24 @@ def miniscript_get(name):
         click.echo(pformat(o))
 
 
+@miniscript.command('policy')
+@click.argument('name', type=str,
+                metavar="MINISCRIPT_WALLET_NAME",
+                required=True)
+def miniscript_bip388_policy(name):
+    """
+    Get registered miniscript wallet policy (BIP-388) by name.
+    """
+    with get_device() as dev:
+        dev.check_mitm()
+
+        resp = dev.send_recv(CCProtocolPacker.miniscript_policy(name),
+                             timeout=None)
+        o = json.loads(resp)
+
+        click.echo(pformat(o))
+
+
 @miniscript.command('addr')
 @click.argument('name', type=str,
                 metavar="MINISCRIPT_WALLET_NAME",

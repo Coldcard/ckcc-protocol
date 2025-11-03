@@ -118,7 +118,7 @@ class CCProtocolPacker:
         flags |= (STXN_FINALIZE if finalize else 0x00)
         rv = pack('<4sII32s', b'stxn', length, int(flags), file_sha)
         if miniscript_name:
-            rv += miniscript_name.encode()
+            rv += pack("B", len(miniscript_name)) + miniscript_name.encode()
         return rv
 
     @staticmethod

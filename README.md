@@ -146,6 +146,9 @@ Ok! Downloading result (5119 bytes)
 00000020  c2 23 e1 06 22 1b 02 0e  bd c8 1c 71 79 7d 3c 02  |.#.."......qy}<.|
 00000030  00 00 00 00 fe ff ff ff  4c 85 a0 2c 80 cb 2c 01  |........L..,..,.|
 
+# sign PSBT provided via stdin
+% echo 'cHNidP8BAHcBAAAAASGhv...fX4RgPBWlDLAAAgAEAAIAAAACAAQAAAAUAAAAA' | ckcc sign - 
+
 ```
 
 ## Miniscript

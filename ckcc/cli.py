@@ -510,21 +510,22 @@ def sign_transaction(psbt_in, psbt_out, pushtx, b64_mode, hex_mode, finalize, vi
         dev.check_mitm()
 
         # Handle non-binary encodings, and incorrect files.
-        taste = psbt_in.read(10)
-        psbt_in.seek(0)
-        if taste == b'70736274ff' or taste == b'70736274FF':
+        data = psbt_in.read()
+
+        if data[:10].lower() == b'70736274ff':
             # Looks hex encoded; make into binary again
-            hx = ''.join(re.findall(r'[0-9a-fA-F]*', psbt_in.read().decode('ascii')))
-            psbt_in = io.BytesIO(a2b_hex(hx))
-        elif taste[0:6] == b'cHNidP':
+            hx = ''.join(re.findall(r'[0-9a-fA-F]*', data.decode('ascii')))
+            data = a2b_hex(hx)
+        elif data[:6] == b'cHNidP':
             # Base64 encoded input
-            psbt_in = io.BytesIO(b64decode(psbt_in.read()))
-        elif taste[0:5] != b'psbt\xff':
+            data = b64decode(data)
+
+        if data[0:5] != b'psbt\xff':
             click.echo("File doesn't have PSBT magic number at start.")
             sys.exit(1)
 
         # upload the transaction
-        txn_len, sha = real_file_upload(psbt_in, dev)
+        txn_len, sha = real_file_upload(io.BytesIO(data), dev)
 
         if pushtx:
             finalize = True
@@ -576,7 +577,7 @@ def sign_transaction(psbt_in, psbt_out, pushtx, b64_mode, hex_mode, finalize, vi
             # save it
             if hex_mode:
                 result = b2a_hex(result)
-            elif b64_mode or (not psbt_out and os.isatty(0)):
+            elif b64_mode or (not psbt_out):
                 result = b64encode(result)
 
             if psbt_out:

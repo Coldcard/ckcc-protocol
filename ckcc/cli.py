@@ -490,11 +490,6 @@ def sign_msg_file(json_file, outfile, outdir):
 
     basename = os.path.basename(json_file)
     name, ext = os.path.splitext(basename)
-    ext_lower = ext.lower()
-
-    if ext_lower not in ('.txt', '.json'):
-        click.echo("Error: file must have .txt or .json extension")
-        sys.exit(1)
 
     if '-signed' in name:
         click.echo("Error: filename cannot contain '-signed'")

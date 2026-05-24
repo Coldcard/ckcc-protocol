@@ -41,7 +41,7 @@ MAX_UPLOAD_LEN = const(2*MAX_TXN_LEN)
 MAX_UPLOAD_LEN_MK4 = const(2*MAX_TXN_LEN_MK4)
 
 # Max length of text messages for signing
-MSG_SIGNING_MAX_LENGTH = const(240)
+MSG_SIGNING_MAX_LENGTH = const(512)
 
 # Bitcoin limitation: max number of signatures in P2SH redeem script (non-segwit)
 # - 520 byte redeem script limit <= 15*34 bytes per pubkey == 510 bytes

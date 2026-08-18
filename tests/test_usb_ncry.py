@@ -350,3 +350,37 @@ def test_ncry_legacy_overlong_response_rejected():
 
     with pytest.raises(CCFramingError, match='Response too long'):
         dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8))
+
+
+def test_ncry_v3_app_error_response_does_not_poison_session():
+    # an application-level error reply (b'err_') arrives as a complete,
+    # validly-tagged response: both sides' streams stay synchronized, so
+    # the session must NOT be poisoned (only transport/framing/auth
+    # failures are terminal for v3)
+    from ckcc.protocol import CCProtoError
+    session_key = sha256(b'ncry-v3-app-err').digest()
+    host_pubkey = bytes(range(64))
+    dev_pubkey = bytes(reversed(range(64)))
+    _, _, d2h_enc, d2h_mac = usb_v3_keys(session_key, host_pubkey, dev_pubkey)
+
+    # one CTR object across both messages: stream continuity per direction
+    ctr = pyaes.AESModeOfOperationCTR(d2h_enc, pyaes.Counter(0))
+
+    def wrap(seq, plaintext):
+        ct = ctr.encrypt(plaintext)
+        tag = HMAC(d2h_mac, pack('<4sII', USB_V3_D2C, seq, len(ct)) + ct,
+                   sha256).digest()[:USB_V3_TAG_LEN]
+        wire = ct + tag
+        assert len(wire) <= 63
+        return bytes([0x80 | 0x40 | len(wire)]) + wire
+
+    queued = [wrap(0, b'err_' + b'bogus command'), wrap(1, b'okay')]
+    dev = make_v3_dev(FakeHID(read_packets=queued), session_key=session_key)
+
+    with pytest.raises(CCProtoError, match='bogus command'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8), expect_errors=True)
+    assert not dev._v3_failed
+
+    # session still usable: next command gets its own response (seq 1)
+    assert dev.send_recv(CCProtocolPacker.ping(b'\x02' * 8)) is None
+    assert not dev._v3_failed

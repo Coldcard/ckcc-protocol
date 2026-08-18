@@ -85,16 +85,28 @@ encryption mid-session, which is mostly a concern in HSM mode.
 Version 3 keeps the v2 bound-mode rules, but derives four independent
 keys from the session key using HKDF-SHA256, bound to the label
 `ccncry3`, the version number, and both ephemeral public keys: one
-AES-CTR key and one HMAC key per direction. Each encrypted message is:
+AES-CTR key and one HMAC key per direction. The key derivation is:
 
-    AES-CTR(plaintext) || Trunc16(HMAC-SHA256(direction, sequence, length, ciphertext))
+    transcript = SHA256("ccncry3" || LE32(version) || host_pubkey || device_pubkey)
+    prk        = HMAC-SHA256(key=transcript, message=session_key)
+    okm        = HKDF-Expand(prk, info="ccncry3", L=128)   # RFC 5869
+    keys       = okm[0:32], okm[32:64], okm[64:96], okm[96:128]
+               = h2d encrypt, h2d MAC, d2h encrypt, d2h MAC
 
+Each encrypted message is:
+
+    ciphertext = AES-256-CTR(plaintext)        # counter-0 stream, per direction
+    tag        = HMAC-SHA256(key=mac_key, message=
+                     direction || LE32(sequence) || LE32(len(ciphertext)) || ciphertext)[0:16]
+    wire       = ciphertext || tag
+
+where `direction` is `C2D\0` for requests and `D2C\0` for responses.
 The 16-byte tag is verified before decryption. This gives each
 direction an independent keystream, and provides message integrity,
 rejection of same-session replay/reordering, and rejection of
-cross-direction reflection. Any authentication or framing failure is
-terminal; reboot the Coldcard and reconnect. Sequence numbers are
-unsigned 32-bit values and must never wrap.
+cross-direction reflection. Any authentication, framing or transport
+failure is terminal; reboot the Coldcard and reconnect. Sequence
+numbers are unsigned 32-bit values and must never wrap.
 
 V3 is opt-in and must be requested with the version field of `ncry`.
 Firmware that does not support v3 rejects the request (`bad ncry

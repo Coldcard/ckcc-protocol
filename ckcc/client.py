@@ -14,7 +14,7 @@ from binascii import b2a_hex
 from hashlib import sha256
 from struct import pack
 from .constants import USB_NCRY_V1, USB_NCRY_V2, USB_NCRY_V3
-from .constants import USB_V3_TAG_LEN, USB_V3_KDF_LABEL
+from .constants import USB_V3_TAG_LEN, USB_V3_KDF_LABEL, USB_V3_MAX_WIRE_MSG_LEN
 from .constants import USB_V3_C2D, USB_V3_D2C
 from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, CCFramingError, MAX_MSG_LEN
 from .utils import decode_xpub, get_pubkey_string, hmac_sha256, hkdf_expand
@@ -146,49 +146,66 @@ class ColdcardDevice:
         if encrypt:
             msg = self.encrypt_request(msg)
 
-        left = len(msg)
-        offset = 0
-        while left > 0:
-            # Note: first byte always zero (HID report number), 
-            # [1] is framing header (length+flags)
-            # [2:65] payload (63 bytes, perhaps including padding)
-            here = min(63, left)
-            buf = bytearray(65)
-            buf[2:2+here] = msg[offset:offset+here]
-            if here == left:
-                # final one in sequence
-                buf[1] = here | 0x80 | (0x40 if encrypt else 0x00)
-            else:
-                # more will be coming
-                buf[1] = here
+        try:
+            left = len(msg)
+            offset = 0
+            while left > 0:
+                # Note: first byte always zero (HID report number),
+                # [1] is framing header (length+flags)
+                # [2:65] payload (63 bytes, perhaps including padding)
+                here = min(63, left)
+                buf = bytearray(65)
+                buf[2:2+here] = msg[offset:offset+here]
+                if here == left:
+                    # final one in sequence
+                    buf[1] = here | 0x80 | (0x40 if encrypt else 0x00)
+                else:
+                    # more will be coming
+                    buf[1] = here
 
-            assert len(buf) == 65
+                assert len(buf) == 65
 
-            if verbose:
-                print("Tx [%2d]: %s (0x%x)" % (here, b2a_hex(buf[1:]), buf[1]))
+                if verbose:
+                    print("Tx [%2d]: %s (0x%x)" % (here, b2a_hex(buf[1:]), buf[1]))
 
-            rv = self.dev.write(buf)
-            assert rv == len(buf) == 65, repr(rv)
+                rv = self.dev.write(buf)
+                assert rv == len(buf) == 65, repr(rv)
 
-            offset += here
-            left -= here
+                offset += here
+                left -= here
 
-        # collect response, framed in the same manner
-        resp = b''
-        while 1:
-            buf = self.dev.read(64, timeout_ms=(timeout or 0))
+            # collect response, framed in the same manner
+            resp = b''
+            while 1:
+                buf = self.dev.read(64, timeout_ms=(timeout or 0))
 
-            if not buf and timeout:
-                # give it another try
-                buf = self.dev.read(64, timeout_ms=timeout)
+                if not buf and timeout:
+                    # give it another try
+                    buf = self.dev.read(64, timeout_ms=timeout)
 
-            assert buf, "timeout reading USB EP"
+                assert buf, "timeout reading USB EP"
 
-            # (trusting more than usual here)
-            flag = buf[0]
-            resp += bytes(buf[1:1+(flag & 0x3f)])
-            if flag & 0x80:
-                break
+                # (trusting more than usual here)
+                flag = buf[0]
+                resp += bytes(buf[1:1+(flag & 0x3f)])
+
+                max_resp = (USB_V3_MAX_WIRE_MSG_LEN
+                            if self.ncry_ver == USB_NCRY_V3 else MAX_MSG_LEN)
+                if len(resp) > max_resp:
+                    raise CCFramingError("Response too long")
+
+                if flag & 0x80:
+                    break
+        except Exception:
+            # Once a v3 request was encrypted, tx_seq and the CTR stream have
+            # advanced. Any transport failure after that point (failed write,
+            # response timeout, over-long response) leaves the session state
+            # ambiguous: the device may have processed the request and a late,
+            # validly-tagged response could otherwise be misattributed to the
+            # next command. v3 sessions are terminal on any failure.
+            if self.ncry_ver == USB_NCRY_V3:
+                self._v3_failed = True
+            raise
 
         if self.decrypt_response and self.ncry_ver == USB_NCRY_V3 and not (flag & 0x40):
             self._v3_failed = True

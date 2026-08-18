@@ -12,6 +12,23 @@ from ckcc.constants import AF_P2WPKH, AF_P2TR, AF_CLASSIC, AF_P2WPKH_P2SH
 B2A = lambda x: binascii.b2a_hex(x).decode('ascii')
 
 
+def hmac_sha256(key, msg):
+    return hmac.new(key, msg, hashlib.sha256).digest()
+
+
+def hkdf_expand(prk, info, length):
+    out = bytearray()
+    t = b''
+    counter = 1
+
+    while len(out) < length:
+        t = hmac_sha256(prk, t + info + bytes([counter]))
+        out.extend(t)
+        counter += 1
+
+    return bytes(out[:length])
+
+
 def xfp2str(xfp):
     # Standardized way to show an xpub's fingerprint... it's a 4-byte string
     # and not really an integer. Used to show as '0x%08x' but that's wrong endian.

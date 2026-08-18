@@ -9,18 +9,41 @@
 #
 #   - ec_mult, ec_setup, aes_setup, mitm_verify
 #
-import hid, os, socket, atexit
+import hid, os, socket, atexit, hmac
 from binascii import b2a_hex
 from hashlib import sha256
-from .constants import USB_NCRY_V1, USB_NCRY_V2
-from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, MAX_MSG_LEN
-from .utils import decode_xpub, get_pubkey_string
+from struct import pack
+from .constants import USB_NCRY_V1, USB_NCRY_V2, USB_NCRY_V3
+from .constants import USB_V3_TAG_LEN, USB_V3_KDF_LABEL
+from .constants import USB_V3_C2D, USB_V3_D2C
+from .protocol import CCProtocolPacker, CCProtocolUnpacker, CCProtoError, CCFramingError, MAX_MSG_LEN
+from .utils import decode_xpub, get_pubkey_string, hmac_sha256, hkdf_expand
 
 # unofficial, unpermissioned... USB numbers
 COINKITE_VID = 0xd13e
 CKCC_PID     = 0xcc10
 
 DEFAULT_SIM_SOCKET = "/tmp/ckcc-simulator.sock"
+
+def usb_v3_keys(session_key, host_pubkey, dev_pubkey):
+    # Must match firmware shared/usb.py. Bind keys to v3 and to both
+    # ephemeral public keys so the two directions cannot reuse a stream.
+    transcript = sha256(
+        USB_V3_KDF_LABEL +
+        pack('<I', USB_NCRY_V3) +
+        host_pubkey +
+        dev_pubkey
+    ).digest()
+
+    prk = hmac_sha256(transcript, session_key)
+    okm = hkdf_expand(prk, USB_V3_KDF_LABEL, 128)
+
+    return (
+        okm[0:32],       # host -> device AES-CTR key
+        okm[32:64],      # host -> device HMAC key
+        okm[64:96],      # device -> host AES-CTR key
+        okm[96:128],     # device -> host HMAC key
+    )
 
 
 class ColdcardDevice:
@@ -64,6 +87,13 @@ class ColdcardDevice:
         self.decrypt_response = None
         self.master_xpub = None
         self.master_fingerprint = None
+        self.tx_seq = 0
+        self.rx_seq = 0
+        self._v3_failed = False
+        self._v3_encrypt_request = None
+        self._v3_decrypt_response = None
+        self._v3_tx_mac_key = None
+        self._v3_rx_mac_key = None
 
         self.resync()
 
@@ -102,12 +132,15 @@ class ColdcardDevice:
         # first byte of each 64-byte packet encodes length or packet-offset
         assert 4 <= len(msg) <= MAX_MSG_LEN, "msg length: %d" % len(msg)
 
+        if self.ncry_ver == USB_NCRY_V3 and self._v3_failed:
+            raise CCFramingError("ncry v3 session failed; reconnect")
+
         if self.encrypt_request is None:
             # disable encryption if not already enabled for this connection
             encrypt = False
 
-        if self.encrypt_request and self.ncry_ver == USB_NCRY_V2:
-            # ncry version 2 - everything needs to be encrypted
+        if self.encrypt_request and self.ncry_ver in {USB_NCRY_V2, USB_NCRY_V3}:
+            # ncry versions 2+ require all future commands to be encrypted.
             encrypt = True
 
         if encrypt:
@@ -157,17 +190,30 @@ class ColdcardDevice:
             if flag & 0x80:
                 break
 
+        if self.decrypt_response and self.ncry_ver == USB_NCRY_V3 and not (flag & 0x40):
+            self._v3_failed = True
+            raise CCFramingError("Unencrypted response in ncry v3")
+
         if flag & 0x40:
             if verbose:
                 print('Enc response: %s' % b2a_hex(resp))
 
-            resp = self.decrypt_response(resp)
+            try:
+                resp = self.decrypt_response(resp)
+            except CCFramingError:
+                if self.ncry_ver == USB_NCRY_V3:
+                    self._v3_failed = True
+                raise
 
         try:
             if verbose:
                 print("Rx [%2d]: %r" % (len(resp), b2a_hex(bytes(resp))))
 
             return CCProtocolUnpacker.decode(resp)
+        except CCFramingError:
+            if self.ncry_ver == USB_NCRY_V3:
+                self._v3_failed = True
+            raise
         except CCProtoError:
             if expect_errors: raise
             raise
@@ -220,14 +266,76 @@ class ColdcardDevice:
 
         return sha256(kk).digest()
 
-    def aes_setup(self, session_key):
+    def aes_setup(self, session_key, version=USB_NCRY_V1, host_pubkey=None, device_pubkey=None):
         # Load keys and define encrypt/decrypt functions
-        # - for CTR mode, we have different counters in each direction, so need two instances
-        # - count must start at zero, and increment in LSB for each block.
         import pyaes
 
+        if version == USB_NCRY_V3:
+            assert host_pubkey and device_pubkey
+            h2d_enc, h2d_mac, d2h_enc, d2h_mac = usb_v3_keys(
+                session_key, host_pubkey, device_pubkey)
+
+            self._v3_encrypt_request = pyaes.AESModeOfOperationCTR(
+                h2d_enc, pyaes.Counter(0)).encrypt
+            self._v3_decrypt_response = pyaes.AESModeOfOperationCTR(
+                d2h_enc, pyaes.Counter(0)).decrypt
+            self._v3_tx_mac_key = h2d_mac
+            self._v3_rx_mac_key = d2h_mac
+            self.tx_seq = 0
+            self.rx_seq = 0
+            self._v3_failed = False
+            self.encrypt_request = self._v3_encrypt_request_msg
+            self.decrypt_response = self._v3_decrypt_response_msg
+            return
+
+        # v1/v2 legacy wire format. Kept unchanged for compatibility.
+        # - for CTR mode, we have different counters in each direction, so need two instances
+        # - count must start at zero, and increment in LSB for each block.
         self.encrypt_request = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).encrypt
         self.decrypt_response = pyaes.AESModeOfOperationCTR(session_key, pyaes.Counter(0)).decrypt
+
+    def _v3_encrypt_request_msg(self, msg):
+        if self._v3_failed:
+            raise CCFramingError("ncry v3 session failed; reconnect")
+        if self.tx_seq > 0xffffffff:
+            self._v3_failed = True
+            raise CCFramingError("ncry v3 request sequence exhausted")
+
+        ciphertext = self._v3_encrypt_request(msg)
+        mac_msg = pack('<4sII', USB_V3_C2D, self.tx_seq, len(ciphertext)) + bytes(ciphertext)
+        tag = hmac_sha256(
+            self._v3_tx_mac_key, mac_msg)[:USB_V3_TAG_LEN]
+        self.tx_seq += 1
+        return bytes(ciphertext) + tag
+
+    def _v3_decrypt_response_msg(self, msg):
+        if self._v3_failed:
+            raise CCFramingError("ncry v3 session failed; reconnect")
+        if len(msg) <= USB_V3_TAG_LEN:
+            self._v3_failed = True
+            raise CCFramingError("Bad encrypted response authentication")
+
+        ct_len = len(msg) - USB_V3_TAG_LEN
+        if ct_len < 4:
+            self._v3_failed = True
+            raise CCFramingError("Bad encrypted response size")
+
+        if self.rx_seq > 0xffffffff:
+            self._v3_failed = True
+            raise CCFramingError("ncry v3 response sequence exhausted")
+
+        ciphertext = msg[:ct_len]
+        got_tag = msg[ct_len:]
+        mac_msg = pack('<4sII', USB_V3_D2C, self.rx_seq, ct_len) + ciphertext
+        expect_tag = hmac_sha256(
+            self._v3_rx_mac_key, mac_msg)[:USB_V3_TAG_LEN]
+        if not hmac.compare_digest(got_tag, expect_tag):
+            self._v3_failed = True
+            raise CCFramingError("Bad encrypted response authentication")
+
+        plaintext = self._v3_decrypt_response(ciphertext)
+        self.rx_seq += 1
+        return plaintext
 
     def start_encryption(self, version=USB_NCRY_V1):
         # setup encryption on the link
@@ -252,7 +360,11 @@ class ColdcardDevice:
         self.master_fingerprint = fingerprint
 
         #print('sess key = %s' % b2a_hex(self.session_key))
-        self.aes_setup(self.session_key)
+        if version == USB_NCRY_V3:
+            self.aes_setup(self.session_key, version=version,
+                           host_pubkey=pubkey, device_pubkey=his_pubkey)
+        else:
+            self.aes_setup(self.session_key)
 
     def mitm_verify(self, sig, expected_xpub):
         from ecdsa import BadSignatureError, SECP256k1, VerifyingKey

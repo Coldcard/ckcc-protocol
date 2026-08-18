@@ -7,21 +7,28 @@ try:
 except ImportError:
     const = int
 
-# USB encryption versions (default USB_NCRY_V1)
+# USB encryption versions (default USB_NCRY_V1).
 #
-# This introduces a new ncry version to close a potential attack vector:
+# V1 is the legacy encrypted USB mode.
 #
-# A malicious program may re-initialize the connection encryption by sending the ncry command a second time during USB operation.
-# This may prove particularly harmful in HSM mode.
-#
-# Sending version USB_NCRY_V2 changes the behavior in two ways:
+# V2 closes a potential attack vector where a malicious program may
+# re-initialize connection encryption by sending the ncry command a second time
+# during USB operation. This may prove particularly harmful in HSM mode. Sending
+# version USB_NCRY_V2 changes behavior in two ways:
 #   * All future commands must be encrypted
 #   * Returns an error if the ncry command is sent again for the duration of the power cycle
 #
-# USB_NCRY_V2 is most suitable for HSM mode as in case of any communication issue or simply by closing `ColdcardDevice`
-# Coldcard will need to reboot to recover USB operation if USB_NCRY_V2.
+# V3 keeps the V2 bound-mode behavior and adds per-message authentication:
+#   * Separate AES-CTR and HMAC keys for each USB direction
+#   * HMAC tag over direction, sequence number, length, and ciphertext
+#   * Sequence numbers to reject same-session replay/reordering
+#
+# V2/V3 are most suitable for HSM mode. In case of any communication issue, or
+# simply by closing `ColdcardDevice`, Coldcard will need to reboot to recover
+# USB operation.
 USB_NCRY_V1 = const(0x01)
 USB_NCRY_V2 = const(0x02)
+USB_NCRY_V3 = const(0x03)
 
 # For upload/download this is the max size of the data block.
 MAX_BLK_LEN = const(2048)
@@ -29,6 +36,13 @@ MAX_BLK_LEN = const(2048)
 # Max total message length, excluding framing overhead (1 byte per 64).
 # - includes args for upload command
 MAX_MSG_LEN = const(4+4+4+MAX_BLK_LEN)
+
+# ncry v3 adds a message authentication tag to encrypted USB messages.
+USB_V3_TAG_LEN = const(16)
+USB_V3_MAX_WIRE_MSG_LEN = const(MAX_MSG_LEN + USB_V3_TAG_LEN)
+USB_V3_KDF_LABEL = b'ccncry3'
+USB_V3_C2D = b'C2D\0'
+USB_V3_D2C = b'D2C\0'
 
 # Max PSBT txn we support (384k bytes as PSBT)
 # - the max on the wire for mainnet is 100k

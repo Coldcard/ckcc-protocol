@@ -89,7 +89,7 @@ class CCProtocolPacker:
 
     @staticmethod
     def encrypt_start(device_pubkey, version=USB_NCRY_V1):
-        supported_versions = [USB_NCRY_V1, USB_NCRY_V2]
+        supported_versions = [USB_NCRY_V1, USB_NCRY_V2, USB_NCRY_V3]
         if version not in supported_versions:
             raise ValueError("Unsupported USB encryption version. "
                              "Supported versions: %s" % (supported_versions))

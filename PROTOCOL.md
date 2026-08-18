@@ -46,28 +46,74 @@ See `ckcc/protocol.py` for details:
 # Link Level Encryption
 
 At any time, the client may upgrade to encrypted communications by
-doing the `encrypt_start()` (one the wire: `ncry`) command. You
+doing the `encrypt_start()` (on the wire: `ncry`) command. You
 must provide a public key, on the SECP256K curve, for Diffie-Hellman
-key exchange in that command. The device will provide it's public
+key exchange in that command, plus an encryption version number
+(`USB_NCRY_V1`, `V2` or `V3`). The device will provide its public
 key (which is random and has no linkage to keys used for storing
 funds). Both sides will do the usual EC point multiplication and
 arrive at a shared session key.
 
+## Version 1 (legacy, default)
+
 Once the session key is established, it is used for AES-256-CTR
 with a counter that starts at zero and increases for each byte sent
-and received.
+and received. Both directions share the same keystream.
 
-At this point, you can be sure that your communications are safe
-from passive evesdroppers, but there is still a risk of active MiTM.
-If that's a concern for you, you can do a `check_mitm()` command
-which returns a signature over the session key using the Coldcard's
-main secret key used for funds.
+Because requests and responses reuse one keystream, v1 does not
+fully protect against passive eavesdroppers: an observer who knows
+or can guess request plaintext (commands have predictable contents)
+can recover the corresponding response plaintext by XORing the two
+ciphertexts. Messages are also not authenticated, so tampering,
+replay and reordering are not detected.
 
-At this time we are not requiring encryption for all commands, but
-that may change in the future. Since we may do that, it's best to enable
-encryption immediately and use it consistently. Part of the response
-to "start encryption" command is the extended public key (XPUB) and
-master fingerprint that you will need for most purposes anyway.
+A new `ncry` command may be sent at any time to re-key.
+
+## Version 2 (bound mode)
+
+Version 2 keeps the v1 wire format, with the same cryptographic
+limitations described above, but changes the rules of the session:
+
+- after setup, all further commands must be encrypted, and
+- a second `ncry` command is rejected until the next power cycle.
+
+This prevents a malicious process from re-initializing the link
+encryption mid-session, which is mostly a concern in HSM mode.
+
+## Version 3 (authenticated)
+
+Version 3 keeps the v2 bound-mode rules, but derives four independent
+keys from the session key using HKDF-SHA256, bound to the label
+`ccncry3`, the version number, and both ephemeral public keys: one
+AES-CTR key and one HMAC key per direction. Each encrypted message is:
+
+    AES-CTR(plaintext) || Trunc16(HMAC-SHA256(direction, sequence, length, ciphertext))
+
+The 16-byte tag is verified before decryption. This gives each
+direction an independent keystream, and provides message integrity,
+rejection of same-session replay/reordering, and rejection of
+cross-direction reflection. Any authentication or framing failure is
+terminal; reboot the Coldcard and reconnect. Sequence numbers are
+unsigned 32-bit values and must never wrap.
+
+V3 is opt-in and must be requested with the version field of `ncry`.
+Firmware that does not support v3 rejects the request (`bad ncry
+version`), and the client should close that attempt and may retry
+with an older version explicitly.
+
+## Endpoint Authentication
+
+None of the above authenticates the Coldcard itself: the ECDH keys
+are ephemeral and unsigned, so an active MiTM can still interpose
+with a separate session on each side. If that's a concern for you,
+you can do a `check_mitm()` command which returns a signature over
+the session key using the Coldcard's main secret key used for funds.
+Verify it against an xpub you already trust from a previous,
+authenticated contact.
+
+Part of the response to "start encryption" command is the extended
+public key (XPUB) and master fingerprint that you will need for most
+purposes anyway.
 
 Code used for this session key setup and encryption is found in
 `ckcc/client.py`. The EC and AES libraries to be used, may be changed
@@ -77,4 +123,3 @@ by overriding a few member functions.
 
 Please examine the CLI program (`ckcc/cli.py`) for examples of how
 to sign transactions and similar.
-

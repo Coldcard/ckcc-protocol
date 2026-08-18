@@ -242,3 +242,111 @@ def test_ncry_v3_sequence_exhaustion_is_terminal():
     with pytest.raises(CCFramingError, match='sequence exhausted'):
         dev.encrypt_request(b'pingone-too-many')
     assert dev._v3_failed
+
+
+class FakeHID:
+    # minimal stand-in for a hid.device / UnixSimulatorPipe
+    def __init__(self, read_packets=(), write_ok=True):
+        self.read_packets = list(read_packets)
+        self.write_ok = write_ok
+        self.written = []
+
+    def write(self, buf):
+        self.written.append(bytes(buf))
+        return len(buf) if self.write_ok else -1
+
+    def read(self, size, timeout_ms=None):
+        if self.read_packets:
+            return self.read_packets.pop(0)
+        return b''        # nothing arrived: timeout
+
+
+def make_v3_dev(fake_dev, **kw):
+    session_key = kw.pop('session_key', sha256(b'ncry-v3-transport').digest())
+    host_pubkey = bytes(range(64))
+    dev_pubkey = bytes(reversed(range(64)))
+
+    dev = ColdcardDevice.__new__(ColdcardDevice)
+    dev.aes_setup(session_key, version=USB_NCRY_V3,
+                  host_pubkey=host_pubkey, device_pubkey=dev_pubkey)
+    dev.ncry_ver = USB_NCRY_V3
+    dev.dev = fake_dev
+    return dev
+
+
+def test_ncry_v3_read_timeout_is_terminal():
+    dev = make_v3_dev(FakeHID())
+
+    with pytest.raises(AssertionError, match='timeout reading USB EP'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8), timeout=1)
+
+    assert dev._v3_failed
+    with pytest.raises(CCFramingError, match='session failed'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x02' * 8))
+
+
+def test_ncry_v3_write_failure_is_terminal():
+    dev = make_v3_dev(FakeHID(write_ok=False))
+
+    with pytest.raises(AssertionError):
+        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8))
+
+    assert dev._v3_failed
+    with pytest.raises(CCFramingError, match='session failed'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x02' * 8))
+
+
+def test_ncry_v3_stale_response_not_misattributed_after_timeout():
+    # regression test: a late, validly-tagged response from a timed-out
+    # command must NOT be returned as the response to the next command
+    session_key = sha256(b'ncry-v3-stale').digest()
+    host_pubkey = bytes(range(64))
+    dev_pubkey = bytes(reversed(range(64)))
+    _, _, d2h_enc, d2h_mac = usb_v3_keys(session_key, host_pubkey, dev_pubkey)
+
+    stale_plaintext = b'biny' + b'stale-result'
+    ciphertext = pyaes.AESModeOfOperationCTR(
+        d2h_enc, pyaes.Counter(0)).encrypt(stale_plaintext)
+    tag = HMAC(
+        d2h_mac,
+        pack('<4sII', USB_V3_D2C, 0, len(ciphertext)) + ciphertext,
+        sha256
+    ).digest()[:USB_V3_TAG_LEN]
+    wire = ciphertext + tag
+    assert len(wire) <= 63
+    queued = [bytes([0x80 | 0x40 | len(wire)]) + wire]
+
+    dev = make_v3_dev(FakeHID(), session_key=session_key)
+
+    # first command times out (its response arrives late, still queued)
+    with pytest.raises(AssertionError, match='timeout reading USB EP'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8), timeout=1)
+    assert dev._v3_failed
+
+    # now the stale response is queued; reused object must refuse to read it
+    dev.dev.read_packets = queued
+    with pytest.raises(CCFramingError, match='session failed'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x02' * 8))
+    assert dev.dev.read_packets == queued, "stale response must stay unread"
+
+
+def test_ncry_v3_overlong_response_rejected():
+    # endless non-final HID fragments must not be buffered unboundedly
+    frag = bytes([63]) + b'\x00' * 63        # 63 payload bytes, not last
+    dev = make_v3_dev(FakeHID(read_packets=[frag] * 40))
+
+    with pytest.raises(CCFramingError, match='Response too long'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8))
+    assert dev._v3_failed
+
+
+def test_ncry_legacy_overlong_response_rejected():
+    from ckcc.constants import USB_NCRY_V1, MAX_MSG_LEN
+    frag = bytes([63]) + b'\x00' * 63
+    dev = ColdcardDevice.__new__(ColdcardDevice)
+    dev.aes_setup(sha256(b'ncry-legacy-long').digest())
+    dev.ncry_ver = USB_NCRY_V1
+    dev.dev = FakeHID(read_packets=[frag] * ((MAX_MSG_LEN // 63) + 2))
+
+    with pytest.raises(CCFramingError, match='Response too long'):
+        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8))

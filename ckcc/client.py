@@ -189,9 +189,8 @@ class ColdcardDevice:
                 flag = buf[0]
                 resp += bytes(buf[1:1+(flag & 0x3f)])
 
-                max_resp = (USB_V3_MAX_WIRE_MSG_LEN
-                            if self.ncry_ver == USB_NCRY_V3 else MAX_MSG_LEN)
-                if len(resp) > max_resp:
+                if self.ncry_ver == USB_NCRY_V3 and \
+                        len(resp) > USB_V3_MAX_WIRE_MSG_LEN:
                     raise CCFramingError("Response too long")
 
                 if flag & 0x80:

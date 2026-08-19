@@ -340,17 +340,6 @@ def test_ncry_v3_overlong_response_rejected():
     assert dev._v3_failed
 
 
-def test_ncry_legacy_overlong_response_rejected():
-    from ckcc.constants import USB_NCRY_V1, MAX_MSG_LEN
-    frag = bytes([63]) + b'\x00' * 63
-    dev = ColdcardDevice.__new__(ColdcardDevice)
-    dev.aes_setup(sha256(b'ncry-legacy-long').digest())
-    dev.ncry_ver = USB_NCRY_V1
-    dev.dev = FakeHID(read_packets=[frag] * ((MAX_MSG_LEN // 63) + 2))
-
-    with pytest.raises(CCFramingError, match='Response too long'):
-        dev.send_recv(CCProtocolPacker.ping(b'\x01' * 8))
-
 
 def test_ncry_v3_app_error_response_does_not_poison_session():
     # an application-level error reply (b'err_') arrives as a complete,

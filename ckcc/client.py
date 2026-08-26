@@ -24,6 +24,7 @@ COINKITE_VID = 0xd13e
 CKCC_PID     = 0xcc10
 
 DEFAULT_SIM_SOCKET = "/tmp/ckcc-simulator.sock"
+DEFAULT_TIMEOUT = int(os.getenv('CKCC_DEFAULT_TIMEOUT', 3000))
 
 def usb_v3_keys(session_key, host_pubkey, dev_pubkey):
     # Must match firmware shared/usb.py. Bind keys to v3 and to both
@@ -47,9 +48,11 @@ def usb_v3_keys(session_key, host_pubkey, dev_pubkey):
 
 
 class ColdcardDevice:
-    def __init__(self, sn=None, dev=None, encrypt=True, ncry_ver=USB_NCRY_V1, is_simulator=False):
+    def __init__(self, sn=None, dev=None, encrypt=True, ncry_ver=USB_NCRY_V1,
+                 is_simulator=False, timeout=DEFAULT_TIMEOUT):
         # Establish connection via USB (HID) or Unix Pipe
         self.is_simulator = is_simulator
+        self.timeout = timeout
 
         if not dev and ((sn and ('/' in sn)) or self.is_simulator):
             dev = UnixSimulatorPipe(sn)
@@ -128,9 +131,12 @@ class ColdcardDevice:
 
         assert self.dev.get_serial_number_string() == self.serial
 
-    def send_recv(self, msg, expect_errors=False, verbose=0, timeout=3000, encrypt=True):
+    def send_recv(self, msg, expect_errors=False, verbose=0, timeout=DEFAULT_TIMEOUT, encrypt=True):
         # first byte of each 64-byte packet encodes length or packet-offset
         assert 4 <= len(msg) <= MAX_MSG_LEN, "msg length: %d" % len(msg)
+
+        if timeout == DEFAULT_TIMEOUT:
+            timeout = self.timeout
 
         if self.ncry_ver == USB_NCRY_V3 and self._v3_failed:
             raise CCFramingError("ncry v3 session failed; reconnect")

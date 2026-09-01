@@ -6,7 +6,7 @@ from ckcc.constants import (
     AF_P2WPKH, USB_NCRY_V1, USB_NCRY_V2, USB_NCRY_V3,
     USB_V3_C2D, USB_V3_D2C, USB_V3_TAG_LEN,
 )
-from ckcc.client import ColdcardDevice, CCProtocolPacker, usb_v3_keys
+from ckcc.client import ColdcardDevice, CCProtocolPacker, DEFAULT_TIMEOUT, usb_v3_keys
 from ckcc.protocol import CCFramingError
 
 
@@ -271,6 +271,7 @@ def make_v3_dev(fake_dev, **kw):
                   host_pubkey=host_pubkey, device_pubkey=dev_pubkey)
     dev.ncry_ver = USB_NCRY_V3
     dev.dev = fake_dev
+    dev.timeout = DEFAULT_TIMEOUT
     return dev
 
 

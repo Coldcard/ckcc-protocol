@@ -131,11 +131,11 @@ class ColdcardDevice:
 
         assert self.dev.get_serial_number_string() == self.serial
 
-    def send_recv(self, msg, expect_errors=False, verbose=0, timeout=DEFAULT_TIMEOUT, encrypt=True):
+    def send_recv(self, msg, expect_errors=False, verbose=0, timeout=Ellipsis, encrypt=True):
         # first byte of each 64-byte packet encodes length or packet-offset
         assert 4 <= len(msg) <= MAX_MSG_LEN, "msg length: %d" % len(msg)
 
-        if timeout == DEFAULT_TIMEOUT:
+        if timeout is Ellipsis:
             timeout = self.timeout
 
         if self.ncry_ver == USB_NCRY_V3 and self._v3_failed:

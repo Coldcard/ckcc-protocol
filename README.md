@@ -98,11 +98,15 @@ Usage: ckcc msg [OPTIONS] MESSAGE
   Sign a short text message
 
 Options:
-  -p, --path DERIVATION  Derivation for key to use [default: m/44'/0'/0'/0/0]
+  -p, --path DERIVATION  Derivation for key to use
   -v, --verbose          Include fancy ascii armour
   -j, --just-sig         Just the signature itself, nothing more
   -s, --segwit           Address in segwit native (p2wpkh, bech32)
-  -w, --wrap             Address in segwit wrapped in P2SH (p2wpkh)
+  -w, --wrap             Address in segwit wrapped in P2SH (p2sh-p2wpkh)
+  --in-file              If present, argument MESSAGE is treated as path to
+                         input file containing message to be signed as defined
+                         in https://coldcard.com/docs/message-signing/#text-file-format.
+  -o, --output FILENAME  Output file (default stdout)
   --help                 Show this message and exit.
 
 % ckcc msg "Hello Coldcard" -p m/34/23/33
@@ -110,6 +114,9 @@ Waiting for OK on the Coldcard...
 Hello Coldcard                    
 1KSXaNHh3G4sfTMsp9q8CmACeqsJn46drd
 H4mTuwMUdnu3MyMA+6aJ3hiAF4L0WBDZFseTEno511hNN8/THIeM4GW4SnrcJJhS3WxMZEWFdEIZDSP+H5aIcao=
+
+# to sign message in file test.json and output RFC armored signature to test-signed.txt
+% ckcc msg test.json --in-file -v -o test-signed.txt
 ```
 
 

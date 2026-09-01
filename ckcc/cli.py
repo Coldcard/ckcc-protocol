@@ -417,137 +417,57 @@ def run_eval(stmt):
 @click.option('--just-sig', '-j', is_flag=True, help='Just the signature itself, nothing more')
 @click.option('--segwit', '-s', is_flag=True, help='Address in segwit native (p2wpkh, bech32)')
 @click.option('--wrap', '-w', is_flag=True, help='Address in segwit wrapped in P2SH (p2sh-p2wpkh)')
-def sign_message(message, path, verbose, just_sig, wrap, segwit):
+@click.option('--in-file', is_flag=True,
+              help='If present, argument MESSAGE is treated as path to input file containing message'
+                   ' to be signed as defined in https://coldcard.com/docs/message-signing/#text-file-format.')
+@click.option("-o", "--output", type=click.File("w"), default="-", help="Output file (default stdout)")
+def sign_message(message, path, verbose, just_sig, wrap, segwit, in_file, output):
     """Sign a short text message"""
+
+    addr_fmt = None
+    if in_file:
+        # message is treated as path to input file
+        if not os.path.exists(message):
+            click.echo("Error: file does not exist", err=True)
+            sys.exit(1)
+
+        with open(message, 'r') as f:
+            raw = f.read()
+
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                if 'msg' not in parsed:
+                    click.echo("Error: JSON must contain 'msg' field", err=True)
+                    sys.exit(1)
+                message = parsed['msg']
+                path = parsed.get('subpath', None)
+                addr_fmt = parsed.get('addr_fmt', None)
+            else:
+                raise ValueError
+        except (json.JSONDecodeError, ValueError):
+            lines = raw.strip().split('\n')
+            if not lines or not lines[0].strip():
+                click.echo("Error: file is empty or has no message", err=True)
+                sys.exit(1)
+            message = lines[0].strip()
+            if len(lines) >= 2 and lines[1].strip():
+                path = lines[1].strip()
+            if len(lines) >= 3 and lines[2].strip():
+                addr_fmt = lines[2].strip()
+
+
     with get_device() as dev:
 
-        addr_fmt, af_path = addr_fmt_help(dev, wrap, segwit)
+        addr_fmt, af_path = addr_fmt_help(dev, wrap, segwit, addr_fmt=addr_fmt)
 
         # NOTE: initial version of firmware not expected to do segwit stuff right, since
         # standard very much still in flux, see: <https://github.com/bitcoin/bitcoin/issues/10542>
 
         # not enforcing policy here on msg contents, so we can define that on product
-        message = message.encode('ascii') if not isinstance(message, bytes) else message
-
-        ok = dev.send_recv(CCProtocolPacker.sign_message(message, path or af_path, addr_fmt), timeout=None)
-        assert ok == None
-
-        print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
-        sys.stderr.flush()
-
-        while 1:
-            time.sleep(0.250)
-            done = dev.send_recv(CCProtocolPacker.get_signed_msg(), timeout=None)
-            if done == None:
-                continue
-
-            break
-
-        print("\r                                  \r", end='', file=sys.stderr)
-        sys.stderr.flush()
-
-        if len(done) != 2:
-            click.echo('Failed: %r' % done)
-            sys.exit(1)
-
-        addr, raw = done
-
-        sig = str(b64encode(raw), 'ascii').replace('\n', '')
-
-        if just_sig:
-            click.echo(str(sig))
-        elif verbose:
-            click.echo(RFC_SIGNATURE_TEMPLATE.format(msg=message.decode('ascii'),
-                                                     addr=addr, sig=sig))
-        else:
-            click.echo('%s\n%s\n%s' % (message.decode('ascii'), addr, sig))
-
-
-@main.command('msg-file')
-@click.argument('json_file', type=click.Path(exists=True, dir_okay=False), metavar="FILE_PATH")
-@click.option('--outfile', '-o', type=click.Path(), default=None,
-              help="Output file path for signed result (default: <basename>-signed.<ext>)")
-@click.option('--outdir', '-d', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              default=None, help="Directory to save signed file (default: same as input)")
-def sign_msg_file(json_file, outfile, outdir):
-    """
-    Sign a text file containing a message (TXT or JSON format).
-
-    Reads a JSON or TXT file, extracts the message to sign, sends it to the Coldcard
-    for signing, and writes the result as an RFC2440-like signed message file.
-
-    For JSON files, the file must contain a 'msg' field. The 'subpath' and 'addr_fmt'
-    fields are optional:
-
-        {"msg":"this address belongs to me","subpath":"m/84h/0h/0h/0/120"}
-
-    For TXT files, the first line is the message. The optional second line specifies
-    the subkey derivation path. The optional third line specifies the address format
-    (p2pkh, p2sh-p2wpkh, or p2wpkh).
-
-    The signed output file is saved with '-signed' inserted before the file extension.
-    """
-
-    basename = os.path.basename(json_file)
-    name, ext = os.path.splitext(basename)
-
-    if '-signed' in name:
-        click.echo("Error: filename cannot contain '-signed'")
-        sys.exit(1)
-
-    raw = open(json_file, 'r').read()
-    if len(raw.encode('utf-8')) > 500: #CC Spec: "Be less than 500 bytes in size"
-        click.echo("Error: file must be less than 500 bytes")
-        sys.exit(1)
-
-    # parse file contents
-    message = None
-    subpath = None
-    addr_fmt_str = None
-
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            if 'msg' not in parsed:
-                click.echo("Error: JSON must contain 'msg' field")
-                sys.exit(1)
-            message = parsed['msg']
-            subpath = parsed.get('subpath', None)
-            addr_fmt_str = parsed.get('addr_fmt', None)
-        else:
-            raise ValueError("not a JSON object")
-    except (json.JSONDecodeError, ValueError):
-        lines = raw.strip().split('\n')
-        if not lines or not lines[0].strip():
-            click.echo("Error: file is empty or has no message")
-            sys.exit(1)
-        message = lines[0].strip()
-        if len(lines) >= 2 and lines[1].strip():
-            subpath = lines[1].strip()
-        if len(lines) >= 3 and lines[2].strip():
-            addr_fmt_str = lines[2].strip()
-
-    wrap = False
-    segwit = False
-    if addr_fmt_str:
-        af = addr_fmt_str.lower().replace('-', '').replace('_', '')
-        if af in ('p2shp2wpkh', 'p2sh_p2wpkh', 'p2shp2wpkh'):
-            wrap = True
-        elif af in ('p2wpkh', 'segwit', 'bech32'):
-            segwit = True
-        elif af not in ('p2pkh', 'classic', ''):
-            click.echo("Warning: unknown addr_fmt '%s', using default (p2pkh)" % addr_fmt_str,
-                        err=True)
-
-    with get_device() as dev:
-
-        addr_fmt, af_path = addr_fmt_help(dev, wrap, segwit)
-        signing_path = subpath or af_path
-        msg_bytes = message.encode('ascii') if not isinstance(message, bytes) else message
-
-        ok = dev.send_recv(CCProtocolPacker.sign_message(msg_bytes, signing_path, addr_fmt),
-                           timeout=None)
-        assert ok == None
+        ok = dev.send_recv(CCProtocolPacker.sign_message(message.encode('ascii'), path or af_path,
+                                                         addr_fmt), timeout=None)
+        assert ok is None
 
         print("Waiting for OK on the Coldcard...", end='', file=sys.stderr)
         sys.stderr.flush()
@@ -555,8 +475,9 @@ def sign_msg_file(json_file, outfile, outdir):
         while 1:
             time.sleep(0.250)
             done = dev.send_recv(CCProtocolPacker.get_signed_msg(), timeout=None)
-            if done == None:
+            if done is None:
                 continue
+
             break
 
         print("\r                                  \r", end='', file=sys.stderr)
@@ -567,19 +488,17 @@ def sign_msg_file(json_file, outfile, outdir):
             sys.exit(1)
 
         addr, raw_sig = done
-
         sig = str(b64encode(raw_sig), 'ascii').replace('\n', '')
 
-        # format as RFC2440-like armoured output
-        result = RFC_SIGNATURE_TEMPLATE.format(msg=message, addr=addr, sig=sig)
+        if just_sig:
+            res = sig
+        elif verbose:
+            res = RFC_SIGNATURE_TEMPLATE.format(msg=message, addr=addr, sig=sig)
+        else:
+            res = '%s\n%s\n%s' % (message, addr, sig)
 
-        if not outfile:
-            out_dir = outdir or os.path.dirname(os.path.abspath(json_file))
-            signed_name = '%s-signed%s' % (name, ext)
-            outfile = os.path.join(out_dir, signed_name)
+        click.echo(res, file=output)
 
-        open(outfile, 'w').write(result)
-        click.echo("Wrote signed message to: %s" % outfile)
 
 def wait_and_download(dev, req, fn):
     # Wait for user action on the device... by polling w/ indicated request

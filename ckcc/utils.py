@@ -151,23 +151,36 @@ def descriptor_template(xfp: str, xpub: str, path: str, fmt: int, m: int = None)
     return res
 
 
-def addr_fmt_help(dev, wrap=False, segwit=False, taproot=False):
+def addr_fmt_help(dev, wrap=False, segwit=False, taproot=False, addr_fmt=None):
+    if addr_fmt is None:
+        if wrap:
+            addr_fmt = "p2sh-p2wpkh"
+        elif segwit:
+            addr_fmt = "p2wpkh"
+        elif taproot:
+            addr_fmt = "p2tr"
+        else:
+            addr_fmt = "p2pkh"
+
     chain = 0
     if dev.master_xpub and dev.master_xpub[0] == "t":
         # testnet
         chain = 1
-    if wrap:
+    if addr_fmt == "p2sh-p2wpkh":
         addr_fmt = AF_P2WPKH_P2SH
         af_path = f"m/49h/{chain}h/0h/0/0"
-    elif segwit:
+    elif addr_fmt == "p2wpkh":
         addr_fmt = AF_P2WPKH
         af_path = f"m/84h/{chain}h/0h/0/0"
-    elif taproot:
+    elif addr_fmt == "p2tr":
         addr_fmt = AF_P2TR
         af_path = f"m/86h/{chain}h/0h/0/0"
-    else:
+    elif addr_fmt == "p2pkh":
         addr_fmt = AF_CLASSIC
         af_path = f"m/44h/{chain}h/0h/0/0"
+    else:
+        # addr_fmt cannot be None
+        raise ValueError(addr_fmt)
 
     return addr_fmt, af_path
 

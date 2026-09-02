@@ -13,6 +13,7 @@ requirements = [
     'hidapi>=0.7.99.post21',
     'ecdsa>=0.17',
     'pyaes',
+    'dnspython>=2.6.0',  # Required for BIP 353 DNSSEC
 ]
 
 cli_requirements = [

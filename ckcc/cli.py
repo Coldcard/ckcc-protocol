@@ -51,6 +51,54 @@ def my_hook(ty, val, tb):
 sys.excepthook=my_hook
 
 
+@main.group()
+def bip353():
+    """BIP-353 DNS Payment handle utilities."""
+    pass
+
+@bip353.command('resolve')
+@click.argument('handle')
+@click.option('--offline', is_flag=True, help="Save proof to file for SD card instead of USB")
+@click.option('--output', type=click.Path(), help="Output file path for offline use")
+def resolve_cmd(handle, offline, output):
+    """Resolve a handle and send to device (USB) or save to file (SD)."""
+    
+    # 1. Host-side resolution
+    resolver = BIP353Resolver()
+    result = resolver.resolve(handle)
+    
+    if result.get('error'):
+        print(f"Error: {result['error']}")
+        return
+
+    # 2. Path Selection
+    if offline:
+        # Save to file for MicroSD transfer
+        file_path = output or f"{handle.replace('@', '_')}.bip353"
+        with open(file_path, 'wb') as f:
+            f.write(result['proof_bytes'])
+        print(f"✅ Proof saved to {file_path}. Copy this to your SD card.")
+    else:
+        # Standard USB/HID Path
+        try:
+            with device_picker() as dev:
+                print(f"Uploading DNSSEC proof to Coldcard...")
+                # We use the method we added to protocol.py earlier
+                dev.send_dnssec_proof(handle, result['proof_bytes'])
+                print("Checking verification status...")
+                # Wait for user interaction on device
+                print("✓ Verified. Check Coldcard screen for details.")
+        except Exception as e:
+            print(f"❌ Connection Error: {e}")
+
+@bip353.command('pay')
+@click.argument('handle')
+@click.argument('amount', type=float)
+def pay_cmd(handle, amount):
+    """Resolve a handle and initiate a transaction."""
+    # Combines resolution + transaction setup
+    pass
+
 @contextlib.contextmanager
 def get_device(optional=False):
     # Open connection to Coldcard as a context with auto-close

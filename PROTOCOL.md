@@ -117,11 +117,29 @@ with an older version explicitly.
 
 None of the above authenticates the Coldcard itself: the ECDH keys
 are ephemeral and unsigned, so an active MiTM can still interpose
-with a separate session on each side. If that's a concern for you,
-you can do a `check_mitm()` command which returns a signature over
-the session key using the Coldcard's main secret key used for funds.
-Verify it against an xpub you already trust from a previous,
-authenticated contact.
+with a separate session on each side. To check for that,
+`check_mitm()` returns a signature over the session key made with
+the Coldcard's main secret key (the one used for funds).
+
+For the check to prove anything, the caller must supply the
+expected master xpub (`check_mitm(expected_xpub=...)`, or verified
+in `mitm_verify()`), and that xpub must come from outside the USB
+link itself: a previously pinned value, an on-device screen
+confirmation, or another out-of-band channel.
+
+If no expected xpub is supplied, the client falls back to the
+master xpub returned by the `ncry` handshake — i.e. the key the
+peer itself just claimed. That verifies only that the endpoint
+holds the private key for the xpub it presented, which any
+endpoint (including an active interceptor or emulated device)
+passes. Circular trust: a bare `check_mitm()` does not protect
+against active MiTM.
+
+A reasonable pattern is TOFU (trust on first use): pin the xpub
+presented on first contact (ideally confirmed against the device
+screen) and pass that pinned value to every later `check_mitm()`
+call. This narrows the active-MITM window from "every session" to
+"first contact only".
 
 Part of the response to "start encryption" command is the extended
 public key (XPUB) and master fingerprint that you will need for most

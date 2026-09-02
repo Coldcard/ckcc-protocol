@@ -401,13 +401,17 @@ class ColdcardDevice:
         return ok
 
     def check_mitm(self, expected_xpub=None, sig=None):
-        # Optional? verification against MiTM attack:
+        # Optional verification against active MiTM attacks:
         # Using the master xpub, check a signature over the session public key, to
         # verify we talking directly to the real Coldcard (no active MitM between us).
         # - message is just the session key itself; no digests or prefixes
         # - no need for this unless concerned about *active* mitm on USB bus
         # - passive attackers (snoopers) will get nothing anyway, thanks to diffie-helman sauce
         # - unfortunately might be too slow to do everytime?
+        # - expected_xpub must be an anchor obtained outside this session;
+        #   falling back to self.master_xpub (the value the peer presented
+        #   during the ncry handshake) is circular and proves nothing.
+        #   TOFU works if you pin the first contact and reuse the pin.
 
         xp = expected_xpub or self.master_xpub
         assert xp, "device doesn't have any secrets yet"

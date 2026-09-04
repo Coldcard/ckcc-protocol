@@ -34,7 +34,8 @@ FW_MIN_LENGTH = (256*1024)
 FW_MAX_LENGTH = (0x100000 - 0x8000)
 
 # .. for Mk4: 2Mbytes, less bootrom of 128k.
-FW_MAX_LENGTH_MK4 = (0x200000 - 0x20000)
+FW_MAX_LENGTH_MK4 = (0x200000 - 0x20000 - 0x80000)
+FW_MAX_DFU_SIZE_MK4 = (FW_MAX_LENGTH_MK4 + 0x1c000 + 0x400)
 
 # Arguments to be used w/ python's struct module.
 FWH_PY_FORMAT = "<I8s8sIIII8s20s64s"
